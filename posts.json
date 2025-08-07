@@ -1,0 +1,113 @@
+[
+  {
+    "postId": 123,
+    "title": "Exploring the Hidden Gems of Andalusia",
+    "content": "Just returned from an amazing trip through Andalusia! The Alhambra was breathtaking, and the food in Seville was incredible. Highly recommend visiting the white villages of Grazalema and Ronda.",
+    "author": {
+      "userId": 456,
+      "username": "TravelBug_88"
+    },
+    "createdAt": "2025-06-15T10:30:00Z",
+    "updatedAt": "2025-06-15T11:00:00Z",
+    "tags": [
+      "Travel",
+      "Spain",
+      "Andalusia",
+      "Europe",
+      "Food"
+    ],
+    "likes": 125,
+    "shares": 15,
+    "comments": [
+      {
+        "commentId": 1,
+        "author": {
+          "userId": 789,
+          "username": "CultureVulture"
+        },
+        "content": "Oh, Andalusia is truly magical! Did you get a chance to see any flamenco shows in Seville?",
+        "createdAt": "2025-06-15T12:05:00Z",
+        "likes": 10
+      },
+      {
+        "commentId": 2,
+        "author": {
+          "userId": 101,
+          "username": "FoodieExplorer"
+        },
+        "content": "The food in Seville is legendary! Any specific tapas bars you'd recommend?",
+        "createdAt": "2025-06-15T13:10:00Z",
+        "likes": 22
+      }
+    ]
+  },
+  {
+    "postId": 456,
+    "title": "Mastering React Hooks: A Deep Dive",
+    "content": "Just finished a comprehensive tutorial on React Hooks. useState and useEffect are game-changers for state management and side effects. Highly recommend exploring custom hooks for reusable logic!",
+    "author": {
+      "userId": 987,
+      "username": "DevGeek_Pro"
+    },
+    "createdAt": "2025-06-14T09:00:00Z",
+    "updatedAt": "2025-06-14T09:45:00Z",
+    "tags": [
+      "Programming",
+      "React",
+      "JavaScript",
+      "Web Development",
+      "Hooks",
+      ""
+    ],
+    "likes": 350,
+    "shares": 80,
+    "comments": [
+      {
+        "commentId": 3,
+        "author": {
+          "userId": 654,
+          "username": "CodeNewbie"
+        },
+        "content": "This is super helpful! I'm still struggling with `useEffect` dependencies. Any tips?",
+        "createdAt": "2025-06-14T10:15:00Z",
+        "likes": 5
+      },
+      {
+        "commentId": 4,
+        "author": {
+          "userId": 321,
+          "username": "SeniorDev"
+        },
+        "content": "Great post! Custom hooks are truly powerful. I've used them to abstract away complex form handling logic.",
+        "createdAt": "2025-06-14T11:00:00Z",
+        "likes": 18
+      },
+      {
+        "commentId": 5,
+        "author": {
+          "userId": 654,
+          "username": "CodeNewbie"
+        },
+        "content": "Thanks for the tip! I'll look into it.",
+        "createdAt": "2025-06-14T11:30:00Z",
+        "likes": 2,
+        "inReplyToCommentId": 4
+      }
+    ]
+  },
+  {
+    "postId": 943,
+    "title": "Difficult Situations",
+    "content": "",
+    "author": {
+      "userId": 341,
+      "username": "ThaNewbie"
+    },
+    "createdAt": "2025-04-14T09:00:00Z",
+    "updatedAt": "2025-06-16T10:45:00Z",
+    "tags": [],
+    "likes": 1,
+    "shares": 0,
+    "comments": []
+  }
+]
