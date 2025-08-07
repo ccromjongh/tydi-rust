@@ -46,6 +46,48 @@ struct Post {
 #[derive(Debug, Deserialize)]
 struct Posts(Vec<Post>);
 
+// Tydi data-structures
+// Each "exploded" version contains all non-sequence data, the constant length ground types such as numbers and booleans
+#[derive(Debug, Clone)]
+struct AuthorExploded {
+    user_id: u32,
+}
+
+#[derive(Debug, Clone)]
+struct PostExploded {
+    post_id: u32,
+    author: AuthorExploded,
+    likes: u32,
+    shares: u32,
+}
+
+#[derive(Debug, Clone)]
+struct CommentExploded {
+    comment_id: u32,
+    author: AuthorExploded,
+    likes: u32,
+    // The `in_reply_to_comment_id` field is optional, so we use `Option<u32>`.
+    in_reply_to_comment_id: Option<u32>,
+}
+
+#[derive(Debug, Clone)]
+struct TydiEl<T> {
+    data: Option<T>,
+    last: Vec<bool>,
+}
+
+#[derive(Debug)]
+struct TydiVec<T> {
+    data: Vec<TydiEl<T>>,
+    n: i8,  // Number of lanes (for throughput)
+    d: i8,  // Dimensionality
+}
+
+#[derive(Debug)]
+struct PostsTydi {
+    posts: TydiVec<PostExploded>,
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     // This assumes the JSON file is named 'posts.json' and is in the same directory.
     let json_file_path = "posts.json";
