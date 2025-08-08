@@ -39,19 +39,32 @@ pub fn tydi_derive_impl(input: TokenStream) -> TokenStream {
             };
 
             if is_vec {
-                vec_fields.push(quote! { pub #field_name: #field_type, });
+                vec_fields.push(field);
             } else {
-                non_vec_fields.push(quote! { pub #field_name: #field_type, });
+                non_vec_fields.push(field);
             }
         }
     }
+
+// Now, we can generate the field definitions for the new structs
+    let non_vec_fields_tokens = non_vec_fields.iter().map(|f| {
+        let field_name = &f.ident;
+        let field_type = &f.ty;
+        quote! { pub #field_name: #field_type, }
+    });
+
+    let vec_fields_tokens = vec_fields.iter().map(|f| {
+        let field_name = &f.ident;
+        let field_type = &f.ty;
+        quote! { pub #field_name: #field_type, }
+    });
 
     // Generate the non-Vec struct
     let non_vec_struct_name = Ident::new(&format!("{}NonVecs", struct_name), struct_name.span());
     let generated_non_vec_struct = quote! {
         #[derive(Debug, PartialEq, Eq, Clone)] // Add common derives
         pub struct #non_vec_struct_name #ty_generics #where_clause {
-            #(#non_vec_fields)*
+            #(#non_vec_fields_tokens)*
         }
     };
 
@@ -60,36 +73,22 @@ pub fn tydi_derive_impl(input: TokenStream) -> TokenStream {
     let generated_vec_struct = quote! {
         #[derive(Debug, PartialEq, Eq, Clone)] // Add common derives
         pub struct #vec_struct_name #ty_generics #where_clause {
-            #(#vec_fields)*
+            #(#vec_fields_tokens)*
         }
     };
 
-    /*// Generate an impl From for original -> non_vec
+    // Generate an impl From for original -> non_vec
     let original_to_non_vec_impl = {
-        let field_assignments: Vec<_> = non_vec_fields.iter().filter_map(|field| {
-            // Extract the field name from the quote::Tokens
-            // This is a bit of a hack and might break with complex field definitions.
-            // A more robust solution would involve parsing the field again or storing the ident.
-            let field_str = field.to_string();
-            let parts: Vec<&str> = field_str.split(':').collect();
-            if parts.len() > 0 {
-                let name = parts[0].trim_end_matches("pub").trim();
-                let ident = Ident::new(name, struct_name.span());
-                Some(quote! { #ident: value.#ident })
-            } else {
-                None
-            }
-        }).collect();
+        let field_assignments = non_vec_fields.iter().map(|f| {
+            let field_name = &f.ident;
+            quote! { #field_name: value.#field_name }
+        });
 
-        if field_assignments.is_empty() {
-            quote! {} // No non-vec fields, no impl needed
-        } else {
-            quote! {
-                impl #impl_generics From<#struct_name #ty_generics> for #non_vec_struct_name #ty_generics #where_clause {
-                    fn from(value: #struct_name #ty_generics) -> Self {
-                        Self {
-                            #(#field_assignments),*
-                        }
+        quote! {
+        impl #impl_generics From<#struct_name #ty_generics> for #non_vec_struct_name #ty_generics #where_clause {
+            fn from(value: #struct_name #ty_generics) -> Self {
+                    Self {
+                        #(#field_assignments),*
                     }
                 }
             }
@@ -98,40 +97,29 @@ pub fn tydi_derive_impl(input: TokenStream) -> TokenStream {
 
     // Generate an impl From for original -> vec
     let original_to_vec_impl = {
-        let field_assignments: Vec<_> = vec_fields.iter().filter_map(|field| {
-            let field_str = field.to_string();
-            let parts: Vec<&str> = field_str.split(':').collect();
-            if parts.len() > 0 {
-                let name = parts[0].trim_end_matches("pub").trim();
-                let ident = Ident::new(name, struct_name.span());
-                Some(quote! { #ident: value.#ident })
-            } else {
-                None
-            }
-        }).collect();
+        let field_assignments = vec_fields.iter().map(|f| {
+            let field_name = &f.ident;
+            quote! { #field_name: value.#field_name }
+        });
 
-        if field_assignments.is_empty() {
-            quote! {} // No vec fields, no impl needed
-        } else {
-            quote! {
-                impl #impl_generics From<#struct_name #ty_generics> for #vec_struct_name #ty_generics #where_clause {
-                    fn from(value: #struct_name #ty_generics) -> Self {
-                        Self {
-                            #(#field_assignments),*
-                        }
+        quote! {
+            impl #impl_generics From<#struct_name #ty_generics> for #vec_struct_name #ty_generics #where_clause {
+                fn from(value: #struct_name #ty_generics) -> Self {
+                    Self {
+                        #(#field_assignments),*
                     }
                 }
             }
         }
-    };*/
+    };
 
 
     // Combine all generated tokens
     let expanded = quote! {
         #generated_non_vec_struct
         #generated_vec_struct
-        // #original_to_non_vec_impl
-        // #original_to_vec_impl
+        #original_to_non_vec_impl
+        #original_to_vec_impl
     };
 
     expanded.into()

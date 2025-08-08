@@ -6,7 +6,7 @@ use std::error::Error;
 // We use `serde::Deserialize` to automatically derive the deserialization logic.
 
 // Represents a single comment.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Comment {
     comment_id: u32,
@@ -19,7 +19,7 @@ struct Comment {
 }
 
 // Represents the author of a post or comment.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Author {
     user_id: u32,
@@ -27,7 +27,7 @@ struct Author {
 }
 
 // Represents a single post.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Post {
     post_id: u32,
