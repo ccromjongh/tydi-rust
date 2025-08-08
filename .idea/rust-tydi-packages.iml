@@ -3,7 +3,11 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tydi_derive_core/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tydi_derive_macro/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
+      <excludeFolder url="file://$MODULE_DIR$/tydi_derive_core/target" />
+      <excludeFolder url="file://$MODULE_DIR$/tydi_derive_macro/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

@@ -1,0 +1,11 @@
+[package]
+name = "tydi_derive_macro"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+tydi_derive_core = { path = "../tydi_derive_core" }
+proc-macro2 = "1.0"

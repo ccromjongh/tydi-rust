@@ -90,6 +90,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "tydi_derive_core"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "tydi_derive_macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "tydi_derive_core",
+]
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
