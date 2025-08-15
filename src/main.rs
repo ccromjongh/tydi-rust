@@ -70,13 +70,99 @@ struct CommentExploded {
     in_reply_to_comment_id: Option<u32>,
 }
 
-#[derive(Debug, Clone)]
+// trait TydiConv {
+//
+// }
+
+// use Into<String> as TydiConv;
+// type TydiConv = Into<String>;
+
+// impl Into<Vec<char>> for &str {
+//     fn into(self) -> Vec<char> {
+//         todo!()
+//     }
+// }
+
+impl From<&str> for TydiVec<u8> {
+    /// Creates a TydiVec from a string.
+    fn from(value: &str) -> Self {
+        let bytes: &[u8] = value.as_bytes();
+        let mut result = Vec::new();
+
+        // Handle empty strings
+        if bytes.is_empty() {
+            return TydiVec {
+                data: vec!(
+                    TydiEl {
+                        data: None,
+                        last: vec![true],  // Empty string marker
+                    }
+                ),
+                d: 0,
+                n: 0
+            }
+        }
+
+        for (i, &byte) in bytes.iter().enumerate() {
+            let is_last_char = i == bytes.len() - 1;
+
+            result.push(TydiEl {
+                data: Some(byte),
+                last: vec![is_last_char],
+            });
+        }
+
+        TydiVec {
+            data: result,
+            n: 0,
+            d: 0,
+        }
+    }
+}
+
+impl<T: Clone> From<Vec<T>> for TydiVec<T> {
+    /// Creates a TydiVec from any vector.
+    fn from(value: Vec<T>) -> Self {
+        let mut result = Vec::new();
+
+        // Handle empty strings
+        if value.is_empty() {
+            return TydiVec {
+                data: vec!(
+                    TydiEl {
+                        data: None,
+                        last: vec![true],  // Empty string marker
+                    }
+                ),
+                d: 0,
+                n: 0
+            }
+        }
+
+        for (i, el) in value.iter().enumerate() {
+            let is_last_char = i == value.len() - 1;
+
+            result.push(TydiEl {
+                data: Some((*el).clone()),
+                last: vec![is_last_char],
+            });
+        }
+
+        TydiVec {
+            data: result,
+            n: 0,
+            d: 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct TydiEl<T> {
     data: Option<T>,
     last: Vec<bool>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct TydiVec<T> {
     data: Vec<TydiEl<T>>,
     n: i8,  // Number of lanes (for throughput)
@@ -84,7 +170,7 @@ struct TydiVec<T> {
 }
 
 // Complete Tydi representation of our data
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct PostsTydi {
     posts: TydiVec<PostExploded>,
     // String streams for variable-length strings
@@ -329,4 +415,32 @@ fn main() -> Result<(), Box<dyn Error>> {
     print_tydi_summary(&tydi_data);
 
     Ok(())
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct TestPostNonVecs {
+    pub post_id: u32,
+    pub title: String,
+    pub content: String,
+    pub author: Author,
+    pub created_at: String,
+    pub updated_at: String,
+    pub likes: u32,
+    pub shares: u32,
+}
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct TestPostVecs {
+    pub tags: Vec<String>,
+    pub comments: Vec<Comment>,
+}
+impl From<Post> for TestPostNonVecs {
+    fn from(value: Post) -> Self {
+        Self { post_id: value.post_id, title: value.title, content: value.content, author: value.author, created_at: value.created_at, updated_at: value.updated_at, likes: value.likes, shares: value.shares }
+    }
+}
+
+impl From<Post> for TestPostVecs {
+    fn from(value: Post) -> Self {
+        Self { tags: value.tags, comments: value.comments }
+    }
 }
