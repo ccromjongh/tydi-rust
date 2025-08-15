@@ -87,7 +87,7 @@ impl From<&str> for TydiVec<u8> {
     /// Creates a TydiVec from a string.
     fn from(value: &str) -> Self {
         let bytes: &[u8] = value.as_bytes();
-        let mut result = Vec::new();
+        let mut result: Vec<TydiEl<u8>> = Vec::new();
 
         // Handle empty strings
         if bytes.is_empty() {
@@ -123,15 +123,15 @@ impl From<&str> for TydiVec<u8> {
 impl<T: Clone> From<Vec<T>> for TydiVec<T> {
     /// Creates a TydiVec from any vector.
     fn from(value: Vec<T>) -> Self {
-        let mut result = Vec::new();
+        let mut result: Vec<TydiEl<T>> = Vec::new();
 
-        // Handle empty strings
+        // Handle empty sequences
         if value.is_empty() {
             return TydiVec {
                 data: vec!(
                     TydiEl {
                         data: None,
-                        last: vec![true],  // Empty string marker
+                        last: vec![true],  // Empty sequence marker
                     }
                 ),
                 d: 0,
@@ -140,12 +140,50 @@ impl<T: Clone> From<Vec<T>> for TydiVec<T> {
         }
 
         for (i, el) in value.iter().enumerate() {
-            let is_last_char = i == value.len() - 1;
+            let is_last_el = i == value.len() - 1;
 
             result.push(TydiEl {
                 data: Some((*el).clone()),
-                last: vec![is_last_char],
+                last: vec![is_last_el],
             });
+        }
+
+        TydiVec {
+            data: result,
+            n: 0,
+            d: 0,
+        }
+    }
+}
+
+impl<T: Clone> From<Vec<TydiVec<T>>> for TydiVec<T> {
+    /// Creates a TydiVec from any vector.
+    fn from(value: Vec<TydiVec<T>>) -> Self {
+        let mut result: Vec<TydiEl<T>> = Vec::new();
+
+        // Handle empty sequences
+        if value.is_empty() {
+            return TydiVec {
+                data: vec!(
+                    TydiEl {
+                        data: None,
+                        last: vec![true, true],  // Fixme how do we know what dimension we should be at here?
+                    }
+                ),
+                d: 0,
+                n: 0
+            }
+        }
+
+        for (i, seq) in value.iter().enumerate() {
+            let is_last_seq = i == value.len() - 1;
+
+            for (j, el) in seq.data.iter().enumerate() {
+                result.push(TydiEl {
+                    data: el.data.clone(),
+                    last: [el.last.clone(), vec![is_last_seq]].concat(),
+                });
+            }
         }
 
         TydiVec {
@@ -407,6 +445,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("Tags: {:?}", post.tags);
         println!("Number of Comments: {}\n", post.comments.len());
     }
+
+    let exploded_posts: Vec<TestPostNonVecs> = posts.iter().map(|p| TestPostNonVecs::from(p.clone())).collect();
+    let posts_tydi: TydiVec<TestPostNonVecs> = exploded_posts.into();
+    let comments_tydi: Vec<TydiVec<Comment>> = posts.iter().map(|p| TydiVec::from(p.comments.clone())).collect();
+    let comments_tydi2: TydiVec<Comment> = comments_tydi.into();
+    let tags_tydi: Vec<TydiVec<u8>> = posts.iter().map(|p| {
+        TydiVec::from(
+            p.tags.iter().map(|t| TydiVec::from(t.as_str())).collect::<Vec<_>>()
+        )
+    }).collect();
+    let tags_tydi2: TydiVec<u8> = tags_tydi.into();
 
     // Transform to Tydi representation
     let tydi_data = transform_to_tydi(&posts);
