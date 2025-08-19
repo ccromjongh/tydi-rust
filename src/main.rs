@@ -300,6 +300,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("result2: {:?} (Display: {})\n", result2, result2);
     let (recovered3, recovered4) = result2.split(12, 16);
     println!("recovered3: {:?} (recovered4: {:?})\n", recovered3, recovered4);
+
+    let number = 123456789u64;
+    let tydi_number: TydiBinary = number.into();
+    println!("number: {}, tydi: {:?}", number, tydi_number);
     
     // This assumes the JSON file is named 'posts.json' and is in the same directory.
     let json_file_path = "posts.json";
