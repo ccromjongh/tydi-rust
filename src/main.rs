@@ -215,6 +215,134 @@ struct TydiBinary {
 }
 
 
+impl TydiBinary {
+    /// Creates a new TydiBinary struct from a vector of bytes and a bit length.
+    fn new(data: Vec<u8>, len: usize) -> Self {
+        // Simple sanity check to ensure the length is not greater than
+        // the capacity of the data vector.
+        assert!(len <= data.len() * 8, "Length cannot exceed data capacity");
+        Self { data, len }
+    }
+
+    /// Concatenates this TydiBinary with another one, returning a new TydiBinary.
+    fn concatenate(&self, other: &Self) -> Self {
+        // If this TydiBinary is empty, the result is simply a clone of the other.
+        if self.len == 0 {
+            return other.clone();
+        }
+
+        // Calculate the total length of the new binary string.
+        let new_len = self.len + other.len;
+
+        // Calculate the number of bits already in the last byte of `self`.
+        let self_tail_bits = self.len % 8;
+
+        // If `self` is byte-aligned, we can simply extend its data with `other`'s data.
+        if self_tail_bits == 0 {
+            let mut new_data = self.data.clone();
+            new_data.extend_from_slice(&other.data);
+            return Self::new(new_data, new_len);
+        }
+
+        // The number of bits needed to complete the last byte of `self`.
+        let tail_space = 8 - self_tail_bits;
+
+        // Clone the data from the first binary to start building the new vector.
+        let mut new_data = self.data.clone();
+
+        // Handle the last byte of `self` and its combination with the first bytes of `other`.
+        // This is the core of the non-byte-aligned concatenation.
+        for (i, &other_byte) in other.data.iter().enumerate() {
+            // Get a mutable reference to the last byte of `new_data`.
+            let last_byte = new_data.last_mut().unwrap();
+
+            // Fill the remaining space in the last byte of `self` with bits from `other_byte`.
+            let bits_from_other = other_byte >> (8 - tail_space);
+            *last_byte |= bits_from_other;
+
+            // If we're not at the end of the `other` data, push the carry-over bits
+            // as a new byte. The carry-over bits are the lower `tail_space` bits
+            // of the current `other` byte, shifted into a new byte.
+            if i < other.data.len() - 1 || (other.len - (i * 8) > tail_space) {
+                let carry_over = (other_byte << tail_space);
+                new_data.push(carry_over);
+            }
+        }
+
+        Self::new(new_data, new_len)
+    }
+
+    /// Splits this TydiBinary into two new TydiBinary instances at the specified lengths.
+    /// Returns a tuple of (TydiBinary, TydiBinary).
+    fn split(&self, len1: usize, len2: usize) -> (Self, Self) {
+        assert_eq!(self.len, len1 + len2, "The sum of the lengths must equal the original length.");
+
+        // Part 1: First TydiBinary
+        let mut data1 = Vec::new();
+        let full_bytes1 = len1 / 8;
+        let rem_bits1 = len1 % 8;
+        for i in 0..full_bytes1 {
+            data1.push(self.data[i]);
+        }
+        if rem_bits1 > 0 {
+            let byte_to_push = self.data[full_bytes1] & (!0u8 << (8 - rem_bits1));
+            data1.push(byte_to_push);
+        }
+        let bin1 = TydiBinary::new(data1, len1);
+
+        // Part 2: Second TydiBinary
+        let mut data2 = Vec::new();
+        let full_bytes2 = len2 / 8;
+        let rem_bits2 = len2 % 8;
+        let start_byte_index = len1 / 8;
+        let start_bit_offset = len1 % 8;
+
+        // Handle the first, potentially partial, byte
+        let mut current_byte = 0;
+        if start_bit_offset > 0 {
+            let next_byte_index = start_byte_index + 1;
+            let current_byte_original = self.data[start_byte_index];
+            let next_byte_original = if next_byte_index < self.data.len() {
+                self.data[next_byte_index]
+            } else {
+                0
+            };
+
+            let remaining_bits_in_byte = 8 - start_bit_offset;
+            current_byte = current_byte_original << start_bit_offset;
+            current_byte |= next_byte_original >> remaining_bits_in_byte;
+            data2.push(current_byte);
+        } else {
+            // Start on a byte boundary, so the first byte is just the first byte of the second part.
+            if len2 > 0 {
+                data2.push(self.data[start_byte_index]);
+            }
+        }
+
+        // Handle all full bytes after the first partial byte.
+        let bytes_to_add = (len2 - (8 - start_bit_offset) % 8 + 7) / 8;
+        for i in 0..bytes_to_add {
+            let original_byte_index = start_byte_index + if start_bit_offset > 0 { 1 } else { 0 } + i;
+            let next_byte_index = original_byte_index + 1;
+
+            let current_byte_original = self.data[original_byte_index];
+            let next_byte_original = if next_byte_index < self.data.len() {
+                self.data[next_byte_index]
+            } else {
+                0
+            };
+
+            let new_byte = (current_byte_original << start_bit_offset) | (next_byte_original >> (8 - start_bit_offset));
+            data2.push(new_byte);
+        }
+
+        // Handle the final partial byte of the second part.
+        let bin2 = TydiBinary::new(data2, len2);
+
+        (bin1, bin2)
+    }
+}
+
 impl Display for TydiBinary {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Handle empty binary string
@@ -512,8 +640,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         data: vec![0b10101010, 0b11110000],
         len: 12,
     };
+    let bin3 = TydiBinary::new(vec![0xAB, 0xC0], 12);
+    let bin4 = TydiBinary::new(vec![0xDE, 0xF0], 16);
     println!("\nDisplay: {}", bin2);
     println!("Debug: {:?}", bin2);
+    let result2 = bin3.concatenate(&bin4);
+    println!("result2: {:?} (Display: {})\n", result2, result2);
+    let (recovered3, recovered4) = result2.split(12, 16);
+    println!("recovered3: {:?} (recovered4: {:?})\n", recovered3, recovered4);
     
     // This assumes the JSON file is named 'posts.json' and is in the same directory.
     let json_file_path = "posts.json";
