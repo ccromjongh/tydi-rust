@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use std::fs;
 use std::error::Error;
+use std::fmt::{self, Display, Debug};
 
 // Define the data structures based on the JSON schema.
 // We use `serde::Deserialize` to automatically derive the deserialization logic.
@@ -205,6 +206,87 @@ struct TydiVec<T> {
     data: Vec<TydiEl<T>>,
     n: i8,  // Number of lanes (for throughput)
     d: i8,  // Dimensionality
+}
+
+#[derive(Clone, PartialEq, Eq)]
+struct TydiBinary {
+    data: Vec<u8>,
+    len: usize,
+}
+
+
+impl Display for TydiBinary {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Handle empty binary string
+        if self.len == 0 {
+            return write!(f, "0b");
+        }
+
+        // Calculate the number of full bytes and remaining bits
+        let full_bytes = self.len / 8;
+        let remaining_bits = self.len % 8;
+
+        // Start with the "0b" prefix
+        write!(f, "0b")?;
+
+        // Format the full bytes
+        for i in 0..full_bytes {
+            write!(f, "{:08b}", self.data[i])?;
+        }
+
+        // Format the last byte with the remaining bits
+        if remaining_bits > 0 {
+            let mask = (8 - remaining_bits);
+            let last_byte = self.data[full_bytes];
+            let masked_bits = last_byte >> mask;
+            write!(f, "{:0w$b}", masked_bits, w = remaining_bits)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Debug for TydiBinary {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Create formatted strings for binary and hexadecimal representations
+        let mut binary_string = String::new();
+        let mut hex_string = String::new();
+
+        // Handle the case where len is 0 to avoid panicking on an empty vector.
+        if self.len > 0 {
+            // Full bytes
+            let full_bytes = self.len / 8;
+            let remaining_bits = self.len % 8;
+
+            // Process full bytes
+            for i in 0..full_bytes {
+                binary_string.push_str(&format!("{:08b} ", self.data[i]));
+                hex_string.push_str(&format!("{:02x} ", self.data[i]));
+            }
+
+            // Process the last, potentially partial, byte
+            if remaining_bits > 0 {
+                // The number of bits to extract from the last byte is `remaining_bits`.
+                // We need to shift the data to the right to get rid of the leading zeros
+                // that are not part of the binary string.
+                let shift_amount = 8 - remaining_bits;
+                let masked_bits = self.data[full_bytes] >> shift_amount;
+
+                // For the hexadecimal representation, we just take the full byte
+                // because the hexadecimal string represents the underlying `Vec<u8>`.
+                binary_string.push_str(&format!("{:0w$b}", masked_bits, w = remaining_bits));
+                hex_string.push_str(&format!("{:02x}", self.data[full_bytes]));
+            }
+        }
+
+        // Build the Debug struct representation
+        f.debug_struct("TydiBinary")
+            .field("len", &self.len)
+            .field("data", &self.data)
+            .field("binary", &binary_string.trim())
+            .field("hex", &hex_string.trim())
+            .finish()
+    }
 }
 
 // Complete Tydi representation of our data
@@ -426,6 +508,13 @@ fn print_tydi_summary(tydi_data: &PostsTydi) {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    let bin2 = TydiBinary {
+        data: vec![0b10101010, 0b11110000],
+        len: 12,
+    };
+    println!("\nDisplay: {}", bin2);
+    println!("Debug: {:?}", bin2);
+    
     // This assumes the JSON file is named 'posts.json' and is in the same directory.
     let json_file_path = "posts.json";
 
