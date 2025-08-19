@@ -31,8 +31,9 @@ pub fn tydi_derive_impl(input: TokenStream) -> TokenStream {
 
             // Check if the type is a Vec
             let is_vec = if let Type::Path(type_path) = field_type {
+                let str_repr = type_path.path.segments.iter().map(|x| x.ident.to_string()).collect::<Vec<_>>().join(".");
                 type_path.path.segments.last().map_or(false, |segment| {
-                    segment.ident == "Vec"
+                    segment.ident == "Vec" || segment.ident == "String" ||  segment.ident == "str"
                 })
             } else {
                 false

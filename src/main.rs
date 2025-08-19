@@ -446,8 +446,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("Number of Comments: {}\n", post.comments.len());
     }
 
-    let exploded_posts: Vec<TestPostNonVecs> = posts.iter().map(|p| TestPostNonVecs::from(p.clone())).collect();
-    let posts_tydi: TydiVec<TestPostNonVecs> = exploded_posts.into();
+    let exploded_posts: Vec<PostNonVecs> = posts.iter().map(|p| PostNonVecs::from(p.clone())).collect();
+    let posts_tydi: TydiVec<PostNonVecs> = exploded_posts.into();
     let comments_tydi: Vec<TydiVec<Comment>> = posts.iter().map(|p| TydiVec::from(p.comments.clone())).collect();
     let comments_tydi2: TydiVec<Comment> = comments_tydi.into();
     let tags_tydi: Vec<TydiVec<u8>> = posts.iter().map(|p| {
@@ -467,29 +467,56 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct TestPostNonVecs {
+pub struct PostNonVecs {
     pub post_id: u32,
-    pub title: String,
-    pub content: String,
-    pub author: Author,
-    pub created_at: String,
-    pub updated_at: String,
+    pub author: AuthorNonVecs,
     pub likes: u32,
     pub shares: u32,
 }
+
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct TestPostVecs {
+pub struct PostVecs {
+    pub title: String,
+    pub content: String,
+    pub created_at: String,
+    pub updated_at: String,
     pub tags: Vec<String>,
     pub comments: Vec<Comment>,
 }
-impl From<Post> for TestPostNonVecs {
-    fn from(value: Post) -> Self {
-        Self { post_id: value.post_id, title: value.title, content: value.content, author: value.author, created_at: value.created_at, updated_at: value.updated_at, likes: value.likes, shares: value.shares }
-    }
+
+impl From<Post> for PostNonVecs { fn from(value: Post) -> Self { Self { post_id: value.post_id, author: value.author.into(), likes: value.likes, shares: value.shares } } }
+
+impl From<Post> for PostVecs { fn from(value: Post) -> Self { Self { title: value.title, content: value.content, created_at: value.created_at, updated_at: value.updated_at, tags: value.tags, comments: value.comments } } }
+
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct AuthorNonVecs {
+    pub user_id: u32,
 }
 
-impl From<Post> for TestPostVecs {
-    fn from(value: Post) -> Self {
-        Self { tags: value.tags, comments: value.comments }
-    }
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct AuthorVecs {
+    pub username: String,
 }
+
+impl From<Author> for AuthorNonVecs { fn from(value: Author) -> Self { Self { user_id: value.user_id } } }
+
+impl From<Author> for AuthorVecs { fn from(value: Author) -> Self { Self { username: value.username } } }
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct CommentNonVecs {
+    pub comment_id: u32,
+    pub author: Author,
+    pub likes: u32,
+    pub in_reply_to_comment_id: Option<u32>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct CommentVecs {
+    pub content: String,
+    pub created_at: String,
+}
+
+impl From<Comment> for CommentNonVecs { fn from(value: Comment) -> Self { Self { comment_id: value.comment_id, author: value.author, likes: value.likes, in_reply_to_comment_id: value.in_reply_to_comment_id } } }
+
+impl From<Comment> for CommentVecs { fn from(value: Comment) -> Self { Self { content: value.content, created_at: value.created_at } } }

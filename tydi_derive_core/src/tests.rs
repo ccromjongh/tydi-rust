@@ -26,3 +26,38 @@ fn first() {
     println!("{}", after_str);
     println!("done");
 }
+
+#[test]
+fn comment() {
+    let input = quote! {
+        struct Comment {
+            comment_id: u32,
+            author: Author,
+            content: String,
+            created_at: String,
+            likes: u32,
+            // The `in_reply_to_comment_id` field is optional, so we use `Option<u32>`.
+            in_reply_to_comment_id: Option<u32>,
+        }
+    };
+
+    let after = tydi_derive_impl(input);
+    let after_str = after.to_string();
+    println!("{}", after_str);
+    println!("done");
+}
+
+#[test]
+fn author() {
+    let input = quote! {
+        struct Author {
+            user_id: u32,
+            username: String,
+        }
+    };
+
+    let after = tydi_derive_impl(input);
+    let after_str = after.to_string();
+    println!("{}", after_str);
+    println!("done");
+}
