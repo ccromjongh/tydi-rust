@@ -149,6 +149,10 @@ pub struct TydiBinary {
 
 
 impl TydiBinary {
+    pub fn empty() -> Self {
+        Self { data: Vec::new(), len: 0 }
+    }
+
     /// Creates a new TydiBinary struct from a vector of bytes and a bit length.
     pub fn new(data: Vec<u8>, len: usize) -> Self {
         // Simple sanity check to ensure the length is not greater than
@@ -290,10 +294,7 @@ impl Display for TydiBinary {
         // Start with the "0b" prefix
         write!(f, "0b")?;
 
-        // Format the full bytes
-        for i in 0..full_bytes {
-            write!(f, "{:08b}", self.data[i])?;
-        }
+        // We print from last byte to first byte because of the little endian memory layout
 
         // Format the last byte with the remaining bits
         if remaining_bits > 0 {
@@ -301,6 +302,11 @@ impl Display for TydiBinary {
             let last_byte = self.data[full_bytes];
             let masked_bits = last_byte >> mask;
             write!(f, "{:0w$b}", masked_bits, w = remaining_bits)?;
+        }
+
+        // Format the full bytes
+        for i in (0..full_bytes).rev() {
+            write!(f, "{:08b}", self.data[i])?;
         }
 
         Ok(())
@@ -319,11 +325,7 @@ impl Debug for TydiBinary {
             let full_bytes = self.len / 8;
             let remaining_bits = self.len % 8;
 
-            // Process full bytes
-            for i in 0..full_bytes {
-                binary_string.push_str(&format!("{:08b} ", self.data[i]));
-                hex_string.push_str(&format!("{:02x} ", self.data[i]));
-            }
+            // We print from last byte to first byte because of the little endian memory layout
 
             // Process the last, potentially partial, byte
             if remaining_bits > 0 {
@@ -337,6 +339,12 @@ impl Debug for TydiBinary {
                 // because the hexadecimal string represents the underlying `Vec<u8>`.
                 binary_string.push_str(&format!("{:0w$b}", masked_bits, w = remaining_bits));
                 hex_string.push_str(&format!("{:02x}", self.data[full_bytes]));
+            }
+
+            // Process full bytes
+            for i in (0..full_bytes).rev() {
+                binary_string.push_str(&format!("{:08b} ", self.data[i]));
+                hex_string.push_str(&format!("{:02x} ", self.data[i]));
             }
         }
 
@@ -415,7 +423,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_from_u32() {
+    fn test_binary_from_u32() {
         // let value: u32 = 0x12345678;
         let value = 12345678u64;
         let binary = TydiBinary::from(value);
@@ -430,7 +438,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_f64() {
+    fn test_binary_from_f64() {
         let value: f64 = 3.14159;
         let binary = TydiBinary::from(value);
 
@@ -439,11 +447,67 @@ mod tests {
     }
 
     #[test]
-    fn test_from_string() {
+    fn test_binary_from_string() {
         let value = 'm';
         let binary = TydiBinary::from(value);
 
         assert_eq!(binary.len, 32);
         // assert_eq!(binary.data, value.to_string().as_bytes().to_vec());
+    }
+
+    #[test]
+    fn test_packing() {
+        #[derive(Debug, PartialEq, Eq, Clone)]
+        struct Comment {
+            comment_id: u32,
+            author: Author,
+            content: String,
+            created_at: String,
+            likes: u32,
+            in_reply_to_comment_id: Option<u32>,
+        }
+
+        #[derive(Debug, PartialEq, Eq, Clone)]
+        struct Author {
+            user_id: u32,
+            username: String,
+        }
+
+        let data = Comment {
+            comment_id: 1,
+            author: Author {
+                user_id: 789,
+                username: "CultureVulture".into()
+            },
+            content: "Oh, Andalusia is truly magical! Did you get a chance to see any flamenco shows in Seville?".into(),
+            created_at: "2025-06-15T12:05:00Z".into(),
+            likes: 10,
+            in_reply_to_comment_id: None,
+        };
+
+        impl From<Author> for TydiBinary {
+            fn from(author: Author) -> TydiBinary {
+                author.user_id.into()
+            }
+        }
+
+        impl From<Comment> for TydiBinary {
+            fn from(comment: Comment) -> TydiBinary {
+                let binaries: Vec<TydiBinary> = vec![
+                    comment.comment_id.into(),
+                    comment.author.into(),
+                    comment.likes.into(),
+                ];
+                binaries.iter().fold(TydiBinary::empty(), |acc, e| acc.concatenate(e)).clone()
+            }
+        }
+
+        let le_value = 1u32.to_le_bytes();
+        let be_value = 2u32.to_be_bytes();
+
+        let bin = TydiBinary::from(data);
+        println!("{}", bin);
+        println!("{:?}", bin);
+        println!("done");
     }
 }
