@@ -97,10 +97,10 @@ impl<T: Clone> From<Vec<T>> for TydiVec<T, 1> {
     }
 }
 
-impl<T: Clone, const N: usize> From<Vec<TydiVec<T, N>>> for TydiVec<T, { N + 1 }> {
+impl<T: Clone, const N: usize, const M: usize> From<Vec<TydiVec<T, N>>> for TydiVec<T, M> {
     /// Creates a TydiVec from any vector.
-    fn from(value: Vec<TydiVec<T>>) -> Self {
-        let mut result: Vec<TydiPacket<T>> = Vec::new();
+    fn from(value: Vec<TydiVec<T, N>>) -> Self {
+        let mut result: Vec<TydiPacket<T, M>> = Vec::new();
 
         // Handle empty sequences
         if value.is_empty() {
@@ -108,7 +108,7 @@ impl<T: Clone, const N: usize> From<Vec<TydiVec<T, N>>> for TydiVec<T, { N + 1 }
                 data: vec!(
                     TydiPacket {
                         data: None,
-                        last: vec![true, true],  // Fixme how do we know what dimension we should be at here?
+                        last: [true; M],  // Fixme how do we know what dimension we should be at here?
                     }
                 ),
                 n: 0
@@ -119,9 +119,14 @@ impl<T: Clone, const N: usize> From<Vec<TydiVec<T, N>>> for TydiVec<T, { N + 1 }
             let is_last_seq = i == value.len() - 1;
 
             for (j, el) in seq.data.iter().enumerate() {
+                let mut last_array: [bool; M] = [false; M];
+                for (j, last) in el.last.iter().enumerate() {
+                    last_array[j] = last.clone();
+                }
+                last_array[M as usize] = is_last_seq;
                 result.push(TydiPacket {
                     data: el.data.clone(),
-                    last: [el.last.clone(), [is_last_seq]].concat(),
+                    last: last_array,
                 });
             }
         }
