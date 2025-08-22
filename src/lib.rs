@@ -1,7 +1,7 @@
 use std::mem;
 use std::fmt;
 use std::fmt::{Debug, Display};
-use bytemuck::{bytes_of, cast, cast_slice, NoUninit, Pod};
+use bytemuck::{bytes_of, cast, cast_slice, from_bytes_mut, NoUninit, Pod};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TydiEl<T> {
@@ -209,10 +209,10 @@ impl TydiBinary {
         Self::new(new_data, new_len)
     }
 
-    /// Splits this TydiBinary into two new TydiBinary instances at the specified lengths.
+    /// Splits this TydiBinary into two new TydiBinary instances at the specified length.
     /// Returns a tuple of (TydiBinary, TydiBinary).
-    pub fn split(&self, len1: usize, len2: usize) -> (Self, Self) {
-        assert_eq!(self.len, len1 + len2, "The sum of the lengths must equal the original length.");
+    pub fn split(&self, len1: usize) -> (Self, Self) {
+        let len2 = self.len - len1;
 
         // Part 1: First TydiBinary
         let mut data1 = Vec::new();
@@ -277,6 +277,13 @@ impl TydiBinary {
         let bin2 = TydiBinary::new(data2, len2);
 
         (bin1, bin2)
+    }
+
+    fn split_for<T: Pod>(&self) -> (T, TydiBinary) {
+        let len = size_of::<T>() * 8;
+        let (split1, split2) = self.split(len);
+        let val: T = *bytemuck::from_bytes(split1.data.as_slice());
+        (val, split2)
     }
 }
 
@@ -502,12 +509,34 @@ mod tests {
             }
         }
 
+        impl From<TydiBinary> for Comment {
+            fn from(bin: TydiBinary) -> Self {
+                let (comment_id, remainder) = bin.split_for();
+                let (author_id, remainder) = remainder.split_for();
+                let (likes, remainder) = remainder.split_for();
+
+                Comment {
+                    comment_id,
+                    author: Author {
+                        user_id: author_id,
+                        username: "".to_string(),
+                    },
+                    content: "".to_string(),
+                    created_at: "".to_string(),
+                    likes,
+                    in_reply_to_comment_id: None,
+                }
+            }
+        }
+
         let le_value = 1u32.to_le_bytes();
         let be_value = 2u32.to_be_bytes();
 
         let bin = TydiBinary::from(data);
         println!("{}", bin);
         println!("{:?}", bin);
+        let reconstructed: Comment = bin.into();
+        println!("{:?}", reconstructed);
         println!("done");
     }
 }
