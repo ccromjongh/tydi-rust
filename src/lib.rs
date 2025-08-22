@@ -269,7 +269,10 @@ impl TydiBinary {
                 0
             };
 
-            let new_byte = (current_byte_original << start_bit_offset) | (next_byte_original >> (8 - start_bit_offset));
+            let new_byte = if (start_bit_offset == 0)
+            { next_byte_original }
+            else
+            { (current_byte_original << start_bit_offset) | (next_byte_original >> (8 - start_bit_offset)) };
             data2.push(new_byte);
         }
 
