@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use std::fs;
 use std::error::Error;
-use rust_tydi_packages::{TydiBinary, TydiEl, TydiVec};
+use rust_tydi_packages::{TydiBinary, TydiPacket, TydiVec};
 
 // Define the data structures based on the JSON schema.
 // We use `serde::Deserialize` to automatically derive the deserialization logic.
@@ -92,7 +92,7 @@ struct PostsTydi {
     comment_author_usernames: TydiVec<char>,
 }
 
-fn string_to_tydi_chars(s: &str, is_last_string: bool) -> Vec<TydiEl<char>> {
+fn string_to_tydi_chars(s: &str, is_last_string: bool) -> Vec<TydiPacket<char>> {
     let chars: Vec<char> = s.chars().collect();
     let mut result = Vec::new();
 
@@ -106,7 +106,7 @@ fn string_to_tydi_chars(s: &str, is_last_string: bool) -> Vec<TydiEl<char>> {
             vec![false]
         };
 
-        result.push(TydiEl {
+        result.push(TydiPacket {
             data: Some(ch),
             last,
         });
@@ -114,7 +114,7 @@ fn string_to_tydi_chars(s: &str, is_last_string: bool) -> Vec<TydiEl<char>> {
 
     // Handle empty strings
     if chars.is_empty() {
-        result.push(TydiEl {
+        result.push(TydiPacket {
             data: None,
             last: vec![true],  // Empty string marker
         });
