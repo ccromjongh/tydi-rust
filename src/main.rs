@@ -71,6 +71,7 @@ struct CommentExploded {
     in_reply_to_comment_id: Option<u32>,
 }
 
+/*
 // Complete Tydi representation of our data
 #[derive(Debug, Clone)]
 struct PostsTydi {
@@ -273,7 +274,7 @@ fn print_tydi_summary(tydi_data: &PostsTydi) {
             println!("Comment {}: Empty, Last={:?}", i, comment_el.last);
         }
     }
-}
+}*/
 
 struct MyTypeStreams {
     subStream: Vec<TydiBinary>,
@@ -326,21 +327,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let exploded_posts: Vec<PostNonVecs> = posts.iter().map(|p| PostNonVecs::from(p.clone())).collect();
-    let posts_tydi: TydiVec<PostNonVecs> = exploded_posts.into();
-    let comments_tydi: Vec<TydiVec<Comment>> = posts.iter().map(|p| TydiVec::from(p.comments.clone())).collect();
-    let comments_tydi2: TydiVec<Comment> = comments_tydi.into();
-    let tags_tydi: Vec<TydiVec<u8>> = posts.iter().map(|p| {
+    let posts_tydi: TydiVec<PostNonVecs, 1> = exploded_posts.into();
+    let comments_tydi: Vec<TydiVec<Comment, 1>> = posts.iter().map(|p| TydiVec::from(p.comments.clone())).collect();
+    let comments_tydi2: TydiVec<Comment, 2> = comments_tydi.into();
+    let tags_tydi: Vec<TydiVec<u8, 2>> = posts.iter().map(|p| {
         TydiVec::from(
             p.tags.iter().map(|t| TydiVec::from(t.as_str())).collect::<Vec<_>>()
         )
     }).collect();
-    let tags_tydi2: TydiVec<u8> = tags_tydi.into();
+    let tags_tydi2: TydiVec<u8, 3> = tags_tydi.into();
 
     // Transform to Tydi representation
-    let tydi_data = transform_to_tydi(&posts);
+    // let tydi_data = transform_to_tydi(&posts);
 
     // Print Tydi transformation summary
-    print_tydi_summary(&tydi_data);
+    // print_tydi_summary(&tydi_data);
 
     Ok(())
 }
