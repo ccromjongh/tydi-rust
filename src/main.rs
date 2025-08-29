@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use std::fs;
 use std::error::Error;
+use std::ops::Deref;
 use rust_tydi_packages::{binary::TydiBinary, TydiPacket, TydiVec, drilling::*};
 // Define the data structures based on the JSON schema.
 // We use `serde::Deserialize` to automatically derive the deserialization logic.
@@ -123,9 +124,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let posts_tydi = posts.convert();
+    let posts_binary = posts_tydi.finish(128);
+    let tags_tydi = posts_tydi.drill(|e| e.tags.clone()).drill(|e| e.as_bytes().to_vec());
     let comments_tydi = posts_tydi.drill(|e| e.comments.clone());
-    let comment_author = comments_tydi.drill(|e| e.author.username.as_bytes().to_vec());
+    let comments_binary = comments_tydi.finish(96);
+    let comment_author_tydi = comments_tydi.drill(|e| e.author.username.as_bytes().to_vec());
+    let comment_author_binary = comment_author_tydi.finish(8);
     let my_var = 5;
+
+    println!("author stream binary: {:?}", comment_author_binary.iter().map(|e| e.to_string()).collect::<Vec<String>>());
+    println!("author stream native: {:?}", posts.iter().flat_map(|e| e.comments.clone()).flat_map(|e| e.author.username.as_bytes().iter().map(|e| format!("{:08b}", e)).collect::<Vec<_>>()).collect::<Vec<_>>());
 
     /*let exploded_posts: Vec<PostNonVecs> = posts.iter().map(|p| PostNonVecs::from(p.clone())).collect();
     let posts_tydi: TydiVec<PostNonVecs> = exploded_posts.into();
@@ -157,6 +165,32 @@ pub struct PostVecs {
     pub updated_at: String,
     pub tags: Vec<String>,
     pub comments: Vec<Comment>,
+}
+
+impl From<Post> for TydiBinary {
+    fn from(value: Post) -> Self {
+        let post_id: TydiBinary = value.post_id.into();
+        let author: TydiBinary = value.author.into();
+        let likes: TydiBinary = value.likes.into();
+        let shares: TydiBinary = value.shares.into();
+        post_id.concatenate(&author).concatenate(&likes).concatenate(&shares)
+    }
+}
+
+impl From<Author> for TydiBinary {
+    fn from(value: Author) -> Self {
+        let author_id: TydiBinary = value.user_id.into();
+        author_id
+    }
+}
+
+impl From<Comment> for TydiBinary {
+    fn from(value: Comment) -> Self {
+        let comment_id: TydiBinary = value.comment_id.into();
+        let author: TydiBinary = value.author.into();
+        let likes: TydiBinary = value.likes.into();
+        comment_id.concatenate(&author).concatenate(&likes)
+    }
 }
 
 impl From<Post> for PostNonVecs { fn from(value: Post) -> Self { Self { post_id: value.post_id, author: value.author.into(), likes: value.likes, shares: value.shares } } }

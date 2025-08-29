@@ -1,20 +1,21 @@
+use crate::binary::TydiBinary;
 use crate::TydiPacket;
 
 pub trait TydiConvert<T> {
-    fn convert(&self) -> Vec<TydiPacket<&T>>;
+    fn convert(&self) -> Vec<TydiPacket<T>>;
 }
 
 impl<T: Clone> TydiConvert<T> for &[T] {
-    fn convert(&self) -> Vec<TydiPacket<&T>> {
+    fn convert(&self) -> Vec<TydiPacket<T>> {
         let len = self.len();
-        self.iter().enumerate().map(|(i, el)| TydiPacket { data: Some(el), last: vec![i == len-1] }).collect()
+        self.iter().enumerate().map(|(i, el)| TydiPacket { data: Some((*el).clone()), last: vec![i == len-1] }).collect()
     }
 }
 
 impl<T: Clone> TydiConvert<T> for Vec<T> {
-    fn convert(&self) -> Vec<TydiPacket<&T>> {
+    fn convert(&self) -> Vec<TydiPacket<T>> {
         let len = self.len();
-        self.iter().enumerate().map(|(i, el)| TydiPacket { data: Some(el), last: vec![i == len-1] }).collect()
+        self.iter().enumerate().map(|(i, el)| TydiPacket { data: Some((*el).clone()), last: vec![i == len-1] }).collect()
     }
 }
 
@@ -64,6 +65,29 @@ impl<T: Clone, B> TydiDrill<T, B> for Vec<TydiPacket<T>> {
                 }]
             };
             new_vec
+        }).collect()
+    }
+}
+
+pub trait TydiPacktestToBinary {
+    fn finish(&self, size: usize) -> Vec<TydiBinary>;
+}
+
+impl<T: Into<TydiBinary> + Clone> TydiPacktestToBinary for Vec<TydiPacket<T>> {
+    fn finish(&self, size: usize) -> Vec<TydiBinary> {
+        self.iter().map(|el| {
+            let last_bin: TydiBinary = el.last.clone().into();
+            let data_clone = el.data.clone();
+            // el.data.and_then(|data| { Some(data.into()) }).or(Some(TydiBinary { data: vec![], len: 0 }))
+            let data_bin = if let Some(data) = data_clone {
+                let binary = data.into();
+                assert_eq!(binary.len, size, "resulting binary not of expected size");
+                binary
+            } else {
+                let n_bytes = size.div_ceil(8);
+                TydiBinary { data: vec![0u8; n_bytes], len: size }
+            };
+            last_bin.concatenate(&data_bin)
         }).collect()
     }
 }

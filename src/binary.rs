@@ -259,3 +259,35 @@ impl From<bool> for TydiBinary {
         Self { data: vec![value.into()], len: 1 }
     }
 }
+
+impl From<Vec<bool>> for TydiBinary {
+    fn from(value: Vec<bool>) -> Self {
+        let bit_count = value.len();
+        let byte_count = bit_count.div_ceil(8);
+
+        let mut packed_bytes = Vec::with_capacity(byte_count);
+
+        // Iterate over the boolean vector in chunks of 8.
+        for chunk in value.chunks(8) {
+            let mut byte: u8 = 0;
+            let mut bit_position: u8 = 0;
+
+            // Iterate through each boolean in the current chunk.
+            for &value in chunk {
+                if value {
+                    // If the boolean is `true`, set the corresponding bit in the byte.
+                    // We use a bitwise OR (`|=`) and left-shift a `1` to the
+                    // correct position. `1 << bit_position` creates a byte with
+                    // only a single bit set at the correct index.
+                    byte |= 1 << bit_position;
+                }
+                // Move to the next bit position.
+                bit_position += 1;
+            }
+
+            // Push the completed byte to the result vector.
+            packed_bytes.push(byte);
+        }
+        TydiBinary { data: packed_bytes, len: bit_count }
+    }
+}
