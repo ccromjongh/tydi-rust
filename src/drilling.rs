@@ -11,17 +11,17 @@ impl<T: Clone> TydiConvert<T> for &[T] {
     }
 }
 
-pub trait TydiDrill<T, B> {
+pub trait TydiDrill<T: Clone, B> {
     fn drill<F>(&self, f: F) -> Vec<TydiPacket<<B as IntoIterator>::Item>>
     where
-        F: Fn(&T) -> B,
+        F: Fn(T) -> B,
         B: IntoIterator;
 }
 
-impl<T, B> TydiDrill<T, B> for Vec<TydiPacket<&T>> {
+impl<T: Clone, B> TydiDrill<T, B> for Vec<TydiPacket<T>> {
     fn drill<F>(&self, f: F) -> Vec<TydiPacket<<B as IntoIterator>::Item>>
     where
-        F: Fn(&T) -> B,
+        F: Fn(T) -> B,
         B: IntoIterator
     {
         type ResultType<B> = Vec<TydiPacket<<B as IntoIterator>::Item>>;
@@ -29,6 +29,7 @@ impl<T, B> TydiDrill<T, B> for Vec<TydiPacket<&T>> {
         let d = self.first().and_then(|el| Some(el.last.len())).unwrap_or(0);
         // Map through existing items in our vector of packets
         self.iter().flat_map(|el| {
+            let el = (*el).clone();
             let new_lasts = [el.last.clone(), vec![false]].concat();
             // If the packet contains data
             let new_vec: ResultType<B> = if let Some(old_data) = el.data {
@@ -39,7 +40,7 @@ impl<T, B> TydiDrill<T, B> for Vec<TydiPacket<&T>> {
 
                 // It can be that this dimension is empty, in that case return a single empty packet
                 if res.is_empty() {
-                    vec![TydiPacket { data: None, last: new_lasts }]
+                    vec![TydiPacket { data: None, last: [el.last.clone(), vec![true]].concat() }]
                 } else {
                     // Patch last element
                     /*if let Some(el) = res.last_mut() {

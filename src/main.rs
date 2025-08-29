@@ -125,9 +125,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let binding = posts.as_slice();
     let posts_tydi = binding.convert();
-    let comments_tydi = posts_tydi.drill(|e| e.comments);
+    let comments_tydi = posts_tydi.drill(|e| e.comments.clone());
+    let comment_author = comments_tydi.drill(|e| e.author.username.as_bytes().to_vec());
+    let my_var = 5;
 
-    let exploded_posts: Vec<PostNonVecs> = posts.iter().map(|p| PostNonVecs::from(p.clone())).collect();
+    /*let exploded_posts: Vec<PostNonVecs> = posts.iter().map(|p| PostNonVecs::from(p.clone())).collect();
     let posts_tydi: TydiVec<PostNonVecs> = exploded_posts.into();
     let comments_tydi: Vec<TydiVec<Comment>> = posts.iter().map(|p| TydiVec::from(p.comments.clone())).collect();
     let comments_tydi2: TydiVec<Comment> = comments_tydi.into();
@@ -136,7 +138,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             p.tags.iter().map(|t| TydiVec::from(t.as_str())).collect::<Vec<_>>()
         )
     }).collect();
-    let tags_tydi2: TydiVec<u8> = tags_tydi.into();
+    let tags_tydi2: TydiVec<u8> = tags_tydi.into();*/
 
     Ok(())
 }
