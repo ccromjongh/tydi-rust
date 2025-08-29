@@ -3,6 +3,8 @@ use std::fmt;
 use std::fmt::{Debug, Display};
 use bytemuck::{bytes_of, cast, cast_slice, from_bytes_mut, NoUninit, Pod};
 
+pub mod drilling;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TydiPacket<T> {
     pub data: Option<T>,

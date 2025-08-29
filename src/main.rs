@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use std::fs;
 use std::error::Error;
-use rust_tydi_packages::{TydiBinary, TydiPacket, TydiVec};
+use rust_tydi_packages::{TydiBinary, TydiPacket, TydiVec, drilling::*};
 
 // Define the data structures based on the JSON schema.
 // We use `serde::Deserialize` to automatically derive the deserialization logic.
@@ -100,7 +100,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let number = 123456789u64;
     let tydi_number: TydiBinary = number.into();
     println!("number: {}, tydi: {:?}", number, tydi_number);
-    
+
+
+
     // This assumes the JSON file is named 'posts.json' and is in the same directory.
     let json_file_path = "posts.json";
 
@@ -120,6 +122,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("Tags: {:?}", post.tags);
         println!("Number of Comments: {}\n", post.comments.len());
     }
+
+    let binding = posts.as_slice();
+    let posts_tydi = binding.convert();
 
     let exploded_posts: Vec<PostNonVecs> = posts.iter().map(|p| PostNonVecs::from(p.clone())).collect();
     let posts_tydi: TydiVec<PostNonVecs> = exploded_posts.into();
