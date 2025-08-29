@@ -24,17 +24,32 @@ impl<T, B> TydiDrill<T, B> for Vec<TydiPacket<&T>> {
         F: Fn(&T) -> B,
         B: IntoIterator
     {
+        type ResultType<B> = Vec<TydiPacket<<B as IntoIterator>::Item>>;
+
+        let d = self.first().and_then(|el| Some(el.last.len())).unwrap_or(0);
+        // Map through existing items in our vector of packets
         self.iter().flat_map(|el| {
-            let new_vec = if let Some(old_data) = el.data {
-                f(old_data).into_iter().enumerate().map(|(j, n_el)| {
-                    let len = self.len(); // Fixme should be inner length
-                    // let mut new_lasts = el.last.clone();
-                    // new_lasts.push(j == len - 1);
-                    let new_lasts = [el.last.clone(), vec![j == len - 1]].concat();
-                    TydiPacket { data: Some(n_el), last: new_lasts }
-                }).collect::<Vec<_>>()
+            let new_lasts = [el.last.clone(), vec![false]].concat();
+            // If the packet contains data
+            let new_vec: ResultType<B> = if let Some(old_data) = el.data {
+                // Apply drilling function create packets from elements of resulting iterable
+                let mut res: ResultType<B> = f(old_data).into_iter().map(|n_el| {
+                    TydiPacket { data: Some(n_el), last: new_lasts.clone() }
+                }).collect();
+
+                // It can be that this dimension is empty, in that case return a single empty packet
+                if res.is_empty() {
+                    vec![TydiPacket { data: None, last: new_lasts }]
+                } else {
+                    // Patch last element
+                    /*if let Some(el) = res.last_mut() {
+                        el.last[d] = true
+                    }*/
+                    let res_len = res.len();
+                    res[res_len - 1].last[d] = true;
+                    res
+                }
             } else {
-                let new_lasts = [el.last.clone(), vec![false]].concat();
                 vec![TydiPacket {
                     data: None,
                     last: new_lasts,
