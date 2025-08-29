@@ -47,7 +47,7 @@ pub fn tydi_derive_impl(input: TokenStream) -> TokenStream {
         }
     }
 
-// Now, we can generate the field definitions for the new structs
+    // Now, we can generate the field definitions for the new structs
     let non_vec_fields_tokens = non_vec_fields.iter().map(|f| {
         let field_name = &f.ident;
         let field_type = &f.ty;

@@ -4,15 +4,14 @@ use std::fmt::{Debug, Display};
 use bytemuck::{bytes_of, cast, cast_slice, from_bytes_mut, NoUninit, Pod};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TydiEl<T> {
+pub struct TydiPacket<T> {
     pub data: Option<T>,
     pub last: Vec<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TydiVec<T> {
-    pub data: Vec<TydiEl<T>>,
-    n: i8,  // Number of lanes (for throughput)
+    pub data: Vec<TydiPacket<T>>,
     d: i8,  // Dimensionality
 }
 
@@ -20,13 +19,12 @@ impl<T> TydiVec<T> {
     pub fn new(d: i8) -> Self {
         TydiVec {
             data: Vec::new(),
-            n: 1,  // Single lane for simplicity
             d,
         }
     }
 
     pub fn push(&mut self, data: Option<T>, last: Vec<bool>) {
-        self.data.push(TydiEl { data, last });
+        self.data.push(TydiPacket { data, last });
     }
 }
 
@@ -34,26 +32,25 @@ impl From<&str> for TydiVec<u8> {
     /// Creates a TydiVec from a string.
     fn from(value: &str) -> Self {
         let bytes: &[u8] = value.as_bytes();
-        let mut result: Vec<TydiEl<u8>> = Vec::new();
+        let mut result: Vec<TydiPacket<u8>> = Vec::new();
 
         // Handle empty strings
         if bytes.is_empty() {
             return TydiVec {
                 data: vec!(
-                    TydiEl {
+                    TydiPacket {
                         data: None,
                         last: vec![true],  // Empty string marker
                     }
                 ),
-                d: 0,
-                n: 0
+                d: 0
             }
         }
 
         for (i, &byte) in bytes.iter().enumerate() {
             let is_last_char = i == bytes.len() - 1;
 
-            result.push(TydiEl {
+            result.push(TydiPacket {
                 data: Some(byte),
                 last: vec![is_last_char],
             });
@@ -61,7 +58,6 @@ impl From<&str> for TydiVec<u8> {
 
         TydiVec {
             data: result,
-            n: 0,
             d: 0,
         }
     }
@@ -70,26 +66,25 @@ impl From<&str> for TydiVec<u8> {
 impl<T: Clone> From<Vec<T>> for TydiVec<T> {
     /// Creates a TydiVec from any vector.
     fn from(value: Vec<T>) -> Self {
-        let mut result: Vec<TydiEl<T>> = Vec::new();
+        let mut result: Vec<TydiPacket<T>> = Vec::new();
 
         // Handle empty sequences
         if value.is_empty() {
             return TydiVec {
                 data: vec!(
-                    TydiEl {
+                    TydiPacket {
                         data: None,
                         last: vec![true],  // Empty sequence marker
                     }
                 ),
-                d: 0,
-                n: 0
+                d: 0
             }
         }
 
         for (i, el) in value.iter().enumerate() {
             let is_last_el = i == value.len() - 1;
 
-            result.push(TydiEl {
+            result.push(TydiPacket {
                 data: Some((*el).clone()),
                 last: vec![is_last_el],
             });
@@ -97,8 +92,7 @@ impl<T: Clone> From<Vec<T>> for TydiVec<T> {
 
         TydiVec {
             data: result,
-            n: 0,
-            d: 0,
+            d: 0
         }
     }
 }
@@ -106,19 +100,18 @@ impl<T: Clone> From<Vec<T>> for TydiVec<T> {
 impl<T: Clone> From<Vec<TydiVec<T>>> for TydiVec<T> {
     /// Creates a TydiVec from any vector.
     fn from(value: Vec<TydiVec<T>>) -> Self {
-        let mut result: Vec<TydiEl<T>> = Vec::new();
+        let mut result: Vec<TydiPacket<T>> = Vec::new();
 
         // Handle empty sequences
         if value.is_empty() {
             return TydiVec {
                 data: vec!(
-                    TydiEl {
+                    TydiPacket {
                         data: None,
                         last: vec![true, true],  // Fixme how do we know what dimension we should be at here?
                     }
                 ),
-                d: 0,
-                n: 0
+                d: 0
             }
         }
 
@@ -126,7 +119,7 @@ impl<T: Clone> From<Vec<TydiVec<T>>> for TydiVec<T> {
             let is_last_seq = i == value.len() - 1;
 
             for (j, el) in seq.data.iter().enumerate() {
-                result.push(TydiEl {
+                result.push(TydiPacket {
                     data: el.data.clone(),
                     last: [el.last.clone(), vec![is_last_seq]].concat(),
                 });
@@ -135,8 +128,7 @@ impl<T: Clone> From<Vec<TydiVec<T>>> for TydiVec<T> {
 
         TydiVec {
             data: result,
-            n: 0,
-            d: 0,
+            d: 0
         }
     }
 }
