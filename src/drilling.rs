@@ -26,13 +26,14 @@ impl<T, B> TydiDrill<T, B> for Vec<TydiPacket<&T>> {
     {
         self.iter().flat_map(|el| {
             let new_vec = if let Some(old_data) = el.data {
-                f(old_data).into_iter().enumerate().map(|(j, n_el)| {
-                    let len = self.len(); // Fixme should be inner length
-                    // let mut new_lasts = el.last.clone();
-                    // new_lasts.push(j == len - 1);
-                    let new_lasts = [el.last.clone(), vec![j == len - 1]].concat();
-                    TydiPacket { data: Some(n_el), last: new_lasts }
-                }).collect::<Vec<_>>()
+                let mut it = f(old_data).into_iter().peekable();
+                let mut res: Vec<TydiPacket<_>> = Vec::new();
+                while let Some(n_el) = it.next() {
+                    let is_last = it.peek().is_none();
+                    let new_lasts = [el.last.clone(), vec![is_last]].concat();
+                    res.push(TydiPacket { data: Some(n_el), last: new_lasts })
+                }
+                res
             } else {
                 let new_lasts = [el.last.clone(), vec![false]].concat();
                 vec![TydiPacket {
