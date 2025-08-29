@@ -440,8 +440,11 @@ impl<I, T, B> ToTydiStream<T, B> for I where I: IntoIterator<Item = T>, {
         F: FnMut(T) -> B,
     {
         let mut tydi_vec: Vec<TydiPacket<B, N>> = Vec::new();
-        for x in self.into_iter().map(f) {
-            tydi_vec.push(TydiPacket { data: Some(x), last: [false; N] });
+        let mut iter = self.into_iter().map(f).peekable();
+        while let Some(x) = iter.next()  {
+            let is_last = iter.peek().is_none();
+            // Todo should have access to previous `last` data here
+            tydi_vec.push(TydiPacket { data: Some(x), last: [is_last; N] });
         }
         tydi_vec
     }
