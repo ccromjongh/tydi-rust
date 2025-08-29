@@ -1,6 +1,7 @@
 use std::mem;
 use std::fmt;
 use std::fmt::{Debug, Display};
+use std::iter::Map;
 use bytemuck::{bytes_of, cast, cast_slice, from_bytes_mut, NoUninit, Pod};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -123,7 +124,7 @@ impl<T: Clone, const N: usize, const M: usize> From<Vec<TydiVec<T, N>>> for Tydi
                 for (j, last) in el.last.iter().enumerate() {
                     last_array[j] = last.clone();
                 }
-                last_array[M as usize] = is_last_seq;
+                last_array[M - 1] = is_last_seq;
                 result.push(TydiPacket {
                     data: el.data.clone(),
                     last: last_array,
@@ -425,6 +426,28 @@ impl<T: NoUninit> From<T> for TydiBinary {
 impl_from_primitive!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64);*/
 
 
+pub trait ToTydiStream<T, B> {
+    fn drill<const N: usize, F>(self, f: F) -> Vec<TydiPacket<B, N>>
+    where
+        Self: IntoIterator<Item = T>,
+        F: FnMut(T) -> B;
+}
+
+impl<I, T, B> ToTydiStream<T, B> for I where I: IntoIterator<Item = T>, {
+    fn drill<const N: usize, F>(self, f: F) -> Vec<TydiPacket<B, N>>
+    where
+        Self: IntoIterator<Item = T>,
+        F: FnMut(T) -> B,
+    {
+        let mut tydi_vec: Vec<TydiPacket<B, N>> = Vec::new();
+        for x in self.into_iter().map(f) {
+            tydi_vec.push(TydiPacket { data: Some(x), last: [false; N] });
+        }
+        tydi_vec
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -538,5 +561,11 @@ mod tests {
         let reconstructed: Comment = bin.into();
         println!("{:?}", reconstructed);
         println!("done");
+    }
+
+    #[test]
+    fn test_drill() {
+        let numbers = vec![1, 2, 3, 4, 5];
+        let squared: Vec<TydiPacket<_, 1>> = numbers.drill(|x| x*x);
     }
 }

@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use std::fs;
 use std::error::Error;
-use rust_tydi_packages::{TydiBinary, TydiPacket, TydiVec};
+use rust_tydi_packages::{TydiBinary, TydiPacket, TydiVec, ToTydiStream};
 
 // Define the data structures based on the JSON schema.
 // We use `serde::Deserialize` to automatically derive the deserialization logic.
@@ -299,7 +299,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Debug: {:?}", bin2);
     let result2 = bin3.concatenate(&bin4);
     println!("result2: {:?} (Display: {})\n", result2, result2);
-    let (recovered3, recovered4) = result2.split(12, 16);
+    let (recovered3, recovered4) = result2.split(12);
     println!("recovered3: {:?} (recovered4: {:?})\n", recovered3, recovered4);
 
     let number = 123456789u64;
@@ -325,6 +325,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("Tags: {:?}", post.tags);
         println!("Number of Comments: {}\n", post.comments.len());
     }
+    let comments_tydi3: Vec<TydiPacket<_, 1>> = posts.clone().drill(|x| x.comments);
 
     let exploded_posts: Vec<PostNonVecs> = posts.iter().map(|p| PostNonVecs::from(p.clone())).collect();
     let posts_tydi: TydiVec<PostNonVecs, 1> = exploded_posts.into();
@@ -337,11 +338,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     }).collect();
     let tags_tydi2: TydiVec<u8, 3> = tags_tydi.into();
 
+
     // Transform to Tydi representation
     // let tydi_data = transform_to_tydi(&posts);
 
     // Print Tydi transformation summary
     // print_tydi_summary(&tydi_data);
+
+    let length = comments_tydi3.len();
+
+    println!("comments_tydi3: {}, {:?}", length, comments_tydi3);
+
+    println!("comments_tydi2: {:?}", comments_tydi2);
 
     Ok(())
 }
