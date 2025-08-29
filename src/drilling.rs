@@ -16,3 +16,22 @@ pub trait TydiDrill<T, B> {
     where
         F: Fn(&T) -> B;
 }
+
+impl<T, B> TydiDrill<T, B> for Vec<TydiPacket<&T>> {
+    fn drill<F>(&self, f: F) -> Vec<TydiPacket<B>>
+    where
+        F: Fn(&T) -> B
+    {
+        let len = self.len();
+
+        self.iter().enumerate().map(|(i, el)| {
+            let mut new_lasts = el.last.clone();
+            new_lasts.push(i == len - 1);
+            let new_data: Option<B> = el.data.and_then(|e| Some(f(e)));
+            TydiPacket {
+                data: new_data,
+                last: new_lasts,
+            }
+        }).collect()
+    }
+}

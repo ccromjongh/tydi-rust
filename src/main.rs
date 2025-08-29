@@ -125,6 +125,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let binding = posts.as_slice();
     let posts_tydi = binding.convert();
+    let comments_tydi = posts_tydi.drill(|e| e.comments);
 
     let exploded_posts: Vec<PostNonVecs> = posts.iter().map(|p| PostNonVecs::from(p.clone())).collect();
     let posts_tydi: TydiVec<PostNonVecs> = exploded_posts.into();
