@@ -123,8 +123,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("Number of Comments: {}\n", post.comments.len());
     }
 
-    let binding = posts.as_slice();
-    let posts_tydi = binding.convert();
+    let posts_tydi = posts.convert();
     let comments_tydi = posts_tydi.drill(|e| e.comments.clone());
     let comment_author = comments_tydi.drill(|e| e.author.username.as_bytes().to_vec());
     let my_var = 5;

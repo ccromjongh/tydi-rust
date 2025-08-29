@@ -11,6 +11,13 @@ impl<T: Clone> TydiConvert<T> for &[T] {
     }
 }
 
+impl<T: Clone> TydiConvert<T> for Vec<T> {
+    fn convert(&self) -> Vec<TydiPacket<&T>> {
+        let len = self.len();
+        self.iter().enumerate().map(|(i, el)| TydiPacket { data: Some(el), last: vec![i == len-1] }).collect()
+    }
+}
+
 pub trait TydiDrill<T: Clone, B> {
     fn drill<F>(&self, f: F) -> Vec<TydiPacket<<B as IntoIterator>::Item>>
     where
