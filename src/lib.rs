@@ -368,49 +368,7 @@ impl Debug for TydiBinary {
     }
 }
 
-/*impl From<&[u8]> for TydiBinary {
-    fn from(bytes: &[u8]) -> Self {
-        Self::new(bytes.to_vec(), bytes.len()*8)
-    }
-}
-
-impl From<u16> for TydiBinary {
-    fn from(nums: u16) -> Self {
-        // let castBytes = nums.to_be_bytes();
-        Self::new(cast::<u16, [u8; 2]>(nums).to_vec(), 16)
-    }
-}
-
-impl From<u32> for TydiBinary {
-    fn from(nums: u32) -> Self {
-        // let castBytes = nums.to_be_bytes();
-        Self::new(cast::<u32, [u8; 4]>(nums).to_vec(), 32)
-    }
-}
-
-impl From<u64> for TydiBinary {
-    fn from(nums: u64) -> Self {
-        // let castBytes = nums.to_be_bytes();
-        Self::new(cast::<u64, [u8; 8]>(nums).to_vec(), 64)
-    }
-}
-
-impl From<&str> for TydiBinary {
-    fn from(s: &str) -> Self {
-        s.as_bytes().into()
-    }
-}*/
-
-impl<T: NoUninit> From<T> for TydiBinary {
-    fn from(value: T) -> Self {
-        let len = size_of::<T>() * 8;
-        let data = bytes_of(&value).to_vec();
-        Self { data, len }
-    }
-}
-
-
-/*macro_rules! impl_from_primitive {
+macro_rules! impl_from_primitive {
     ($($t:ty),*) => {
         $(
             impl From<$t> for TydiBinary {
@@ -425,7 +383,20 @@ impl<T: NoUninit> From<T> for TydiBinary {
     };
 }
 
-impl_from_primitive!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64);*/
+impl_from_primitive!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64);
+
+impl From<char> for TydiBinary {
+    fn from(value: char) -> Self {
+        let val: Vec<u8> = value.to_string().as_bytes().into();
+        Self { data: val, len: 8*4 }
+    }
+}
+
+impl From<bool> for TydiBinary {
+    fn from(value: bool) -> Self {
+        Self { data: vec![value.into()], len: 1 }
+    }
+}
 
 
 #[cfg(test)]
@@ -452,6 +423,8 @@ mod tests {
         let value: f64 = 3.14159;
         let binary = TydiBinary::from(value);
 
+        let val2 = true;
+
         assert_eq!(binary.len, 64);
         assert_eq!(binary.data, value.to_ne_bytes().to_vec());
     }
@@ -461,7 +434,7 @@ mod tests {
         let value = 'm';
         let binary = TydiBinary::from(value);
 
-        assert_eq!(binary.len, 32);
+        assert_eq!(binary.len, 8);
         // assert_eq!(binary.data, value.to_string().as_bytes().to_vec());
     }
 
