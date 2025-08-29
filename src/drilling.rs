@@ -12,26 +12,35 @@ impl<T: Clone> TydiConvert<T> for &[T] {
 }
 
 pub trait TydiDrill<T, B> {
-    fn drill<F>(&self, f: F) -> Vec<TydiPacket<B>>
+    fn drill<F>(&self, f: F) -> Vec<TydiPacket<<B as IntoIterator>::Item>>
     where
-        F: Fn(&T) -> B;
+        F: Fn(&T) -> B,
+        B: IntoIterator;
 }
 
 impl<T, B> TydiDrill<T, B> for Vec<TydiPacket<&T>> {
-    fn drill<F>(&self, f: F) -> Vec<TydiPacket<B>>
+    fn drill<F>(&self, f: F) -> Vec<TydiPacket<<B as IntoIterator>::Item>>
     where
-        F: Fn(&T) -> B
+        F: Fn(&T) -> B,
+        B: IntoIterator
     {
-        let len = self.len();
-
-        self.iter().enumerate().map(|(i, el)| {
-            let mut new_lasts = el.last.clone();
-            new_lasts.push(i == len - 1);
-            let new_data: Option<B> = el.data.and_then(|e| Some(f(e)));
-            TydiPacket {
-                data: new_data,
-                last: new_lasts,
-            }
+        self.iter().flat_map(|el| {
+            let new_vec = if let Some(old_data) = el.data {
+                f(old_data).into_iter().enumerate().map(|(j, n_el)| {
+                    let len = self.len(); // Fixme should be inner length
+                    // let mut new_lasts = el.last.clone();
+                    // new_lasts.push(j == len - 1);
+                    let new_lasts = [el.last.clone(), vec![j == len - 1]].concat();
+                    TydiPacket { data: Some(n_el), last: new_lasts }
+                }).collect::<Vec<_>>()
+            } else {
+                let new_lasts = [el.last.clone(), vec![false]].concat();
+                vec![TydiPacket {
+                    data: None,
+                    last: new_lasts,
+                }]
+            };
+            new_vec
         }).collect()
     }
 }
