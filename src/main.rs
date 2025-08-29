@@ -1,8 +1,7 @@
 use serde::Deserialize;
 use std::fs;
 use std::error::Error;
-use rust_tydi_packages::{TydiBinary, TydiPacket, TydiVec, drilling::*};
-
+use rust_tydi_packages::{binary::TydiBinary, TydiPacket, TydiVec, drilling::*};
 // Define the data structures based on the JSON schema.
 // We use `serde::Deserialize` to automatically derive the deserialization logic.
 
