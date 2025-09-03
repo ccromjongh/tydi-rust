@@ -144,7 +144,7 @@ impl TydiBinary {
         (bin1, bin2)
     }
 
-    pub(crate) fn split_for<T: Pod>(&self) -> (T, TydiBinary) {
+    pub fn split_for<T: Pod>(&self) -> (T, TydiBinary) {
         let len = size_of::<T>() * 8;
         let (split1, split2) = self.split(len);
         let val: T = *bytemuck::from_bytes(split1.data.as_slice());
@@ -240,6 +240,13 @@ macro_rules! impl_from_primitive {
                         data: value.to_ne_bytes().to_vec(),
                         len: mem::size_of::<$t>() * 8,
                     }
+                }
+            }
+
+            impl From<TydiBinary> for $t {
+                fn from(value: TydiBinary) -> Self {
+                    let (int_bytes, _) = value.data.split_at(size_of::<$t>());
+                    <$t>::from_ne_bytes(int_bytes.try_into().unwrap())
                 }
             }
         )*
