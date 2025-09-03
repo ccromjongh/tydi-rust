@@ -3,6 +3,7 @@ use std::fs;
 use std::error::Error;
 use chrono::{DateTime, Utc};
 use rust_tydi_packages::{binary::TydiBinary, TydiPacket, TydiVec, drilling::*};
+use rust_tydi_packages::binary::FromTydiBinary;
 // Define the data structures based on the JSON schema.
 // We use `serde::Deserialize` to automatically derive the deserialization logic.
 
@@ -50,6 +51,14 @@ impl From<MyDate> for TydiBinary {
     fn from(value: MyDate) -> Self {
         let temp: u64 = value.0.timestamp() as u64;
         temp.into()
+    }
+}
+
+impl FromTydiBinary for MyDate {
+    fn from_tydi_binary(value: TydiBinary) -> (Self, TydiBinary) {
+        let (int_value, res) = i64::from_tydi_binary(value);
+        let dt = DateTime::from_timestamp(int_value, 0).unwrap();
+        (MyDate(dt), res)
     }
 }
 
@@ -146,10 +155,45 @@ impl From<Post> for TydiBinary {
     }
 }
 
+impl From<TydiBinary> for Post {
+    fn from(value: TydiBinary) -> Self {
+        let (post_id, res) = u32::from_tydi_binary(value);
+        let (author, res) = Author::from_tydi_binary(res);
+        let (created_at, res) = MyDate::from_tydi_binary(res);
+        let (updated_at, res) = MyDate::from_tydi_binary(res);
+        let (likes, res) = u32::from_tydi_binary(res);
+        let (shares, res) = u32::from_tydi_binary(res);
+
+        Self {
+            post_id,
+            title: "".to_string(),
+            content: "".to_string(),
+            author,
+            created_at,
+            updated_at,
+            tags: vec![],
+            likes,
+            shares,
+            comments: vec![],
+        }
+    }
+}
+
 impl From<Author> for TydiBinary {
     fn from(value: Author) -> Self {
         let author_id: TydiBinary = value.user_id.into();
         author_id
+    }
+}
+
+impl FromTydiBinary for Author {
+    fn from_tydi_binary(value: TydiBinary) -> (Self, TydiBinary) {
+        let (user_id, res) = u32::from_tydi_binary(value);
+        let author = Self {
+            user_id,
+            username: "".to_string(),
+        };
+        (author, res)
     }
 }
 

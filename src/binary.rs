@@ -249,11 +249,23 @@ macro_rules! impl_from_primitive {
                     <$t>::from_ne_bytes(int_bytes.try_into().unwrap())
                 }
             }
+
+            impl FromTydiBinary for $t {
+                fn from_tydi_binary(value: TydiBinary) -> (Self, TydiBinary) {
+                    let (bin1, bin2) = value.split(size_of::<$t>() * 8);
+                    let int_bytes = bin1.data.as_slice();
+                    (<$t>::from_ne_bytes(int_bytes.try_into().unwrap()), bin2)
+                }
+            }
         )*
     };
 }
 
 impl_from_primitive!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64);
+
+pub trait FromTydiBinary where Self: Sized {
+    fn from_tydi_binary(value: TydiBinary) -> (Self, TydiBinary);
+}
 
 impl From<char> for TydiBinary {
     fn from(value: char) -> Self {
