@@ -84,25 +84,6 @@ struct MyTypeProcessed {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let bin2 = TydiBinary {
-        data: vec![0b10101010, 0b11110000],
-        len: 12,
-    };
-    let bin3 = TydiBinary::new(vec![0xAB, 0xC0], 12);
-    let bin4 = TydiBinary::new(vec![0xDE, 0xF0], 16);
-    println!("\nDisplay: {}", bin2);
-    println!("Debug: {:?}", bin2);
-    let result2 = bin3.concatenate(&bin4);
-    println!("result2: {:?} (Display: {})\n", result2, result2);
-    let (recovered3, recovered4) = result2.split(12);
-    println!("recovered3: {:?} (recovered4: {:?})\n", recovered3, recovered4);
-
-    let number = 123456789u64;
-    let tydi_number: TydiBinary = number.into();
-    println!("number: {}, tydi: {:?}", number, tydi_number);
-
-
-
     // This assumes the JSON file is named 'posts.json' and is in the same directory.
     let json_file_path = "posts.json";
 

@@ -141,41 +141,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_binary_from_u32() {
-        // let value: u32 = 0x12345678;
-        let value = 12345678u64;
-        let binary = TydiBinary::from(value);
-
-        assert_eq!(binary.len, 64);
-        assert_eq!(binary.data, value.to_ne_bytes().to_vec());
-
-        let binary: TydiBinary = value.into();
-
-        assert_eq!(binary.len, 64);
-        assert_eq!(binary.data, value.to_ne_bytes().to_vec());
-    }
-
-    #[test]
-    fn test_binary_from_f64() {
-        let value: f64 = 3.14159;
-        let binary = TydiBinary::from(value);
-
-        let val2 = true;
-
-        assert_eq!(binary.len, 64);
-        assert_eq!(binary.data, value.to_ne_bytes().to_vec());
-    }
-
-    #[test]
-    fn test_binary_from_string() {
-        let value = 'm';
-        let binary = TydiBinary::from(value);
-
-        assert_eq!(binary.len, 8);
-        // assert_eq!(binary.data, value.to_string().as_bytes().to_vec());
-    }
-
-    #[test]
     fn test_packing() {
         #[derive(Debug, PartialEq, Eq, Clone)]
         struct Comment {

@@ -291,3 +291,88 @@ impl From<Vec<bool>> for TydiBinary {
         TydiBinary { data: packed_bytes, len: bit_count }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::binary::TydiBinary;
+
+    #[test]
+    fn test_binary_glue() {
+        let bin1 = TydiBinary {
+            data: vec![0b10101010, 0b11110000],
+            len: 16,
+        };
+        let string1 = bin1.to_string();
+        assert_eq!(string1, "0b1111000010101010");
+
+        let bin2 = TydiBinary {
+            data: vec![0b10101010, 0b11110000], // 0xaa, 0xf0
+            len: 12,
+        };
+        let string2 = bin2.to_string();
+        assert_eq!(string2, "0b111110101010");
+
+        let last_bin = TydiBinary { data: vec![0b101], len: 3 }; // Value = 5
+        let char_bin = TydiBinary { data: vec![0b01000011], len: 8 }; // Value = 67 or 0x43
+        let package = last_bin.concatenate(&char_bin); // Expected value = 0x021D or [0x1D, 0x02]
+        assert_eq!(package.data[0], 0x1D);
+        assert_eq!(package.data[1], 0x02);
+        let package_string = package.to_string();
+        assert_eq!(package_string, "0b01000011101");
+
+        let bin3 = TydiBinary::new(vec![0xAB, 0xC0], 12);
+        // 0xAB = 1010 1011, 0xC0 = 1100 0000
+        let string3 = bin3.to_string();
+        assert_eq!(string3, "0b110010101011");
+
+        let bin4 = TydiBinary::new(vec![0xDE, 0xF0], 16);
+        // 0xAB = 1101 1110, 0xF0 = 1111 0000
+        let string4 = bin4.to_string();
+        assert_eq!(string4, "0b1111000011011110");
+
+        let result2 = bin3.concatenate(&bin4);
+        let result_string2 = result2.to_string();
+        assert_eq!(result_string2, "0b1111000011011110110010101011");
+        let (recovered3, recovered4) = result2.split(12);
+        println!("recovered3: {:?} (recovered4: {:?})\n", recovered3, recovered4);
+
+        let number = 123456789u64;
+        let tydi_number: TydiBinary = number.into();
+        println!("number: {}, tydi: {:?}", number, tydi_number);
+    }
+
+    #[test]
+    fn test_binary_from_u32() {
+        // let value: u32 = 0x12345678;
+        let value = 12345678u64;
+        let binary = TydiBinary::from(value);
+
+        assert_eq!(binary.len, 64);
+        assert_eq!(binary.data, value.to_ne_bytes().to_vec());
+
+        let binary: TydiBinary = value.into();
+
+        assert_eq!(binary.len, 64);
+        assert_eq!(binary.data, value.to_ne_bytes().to_vec());
+    }
+
+    #[test]
+    fn test_binary_from_f64() {
+        let value: f64 = 3.14159;
+        let binary = TydiBinary::from(value);
+
+        let val2 = true;
+
+        assert_eq!(binary.len, 64);
+        assert_eq!(binary.data, value.to_ne_bytes().to_vec());
+    }
+
+    #[test]
+    fn test_binary_from_string() {
+        let value = 'm';
+        let binary = TydiBinary::from(value);
+
+        assert_eq!(binary.len, 8);
+        // assert_eq!(binary.data, value.to_string().as_bytes().to_vec());
+    }
+}
