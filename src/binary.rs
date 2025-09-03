@@ -56,14 +56,14 @@ impl TydiBinary {
             let last_byte = new_data.last_mut().unwrap();
 
             // Fill the remaining space in the last byte of `self` with bits from `other_byte`.
-            let bits_from_other = other_byte >> (8 - tail_space);
+            let bits_from_other = other_byte << (8 - tail_space);
             *last_byte |= bits_from_other;
 
             // If we're not at the end of the `other` data, push the carry-over bits
             // as a new byte. The carry-over bits are the lower `tail_space` bits
             // of the current `other` byte, shifted into a new byte.
             if i < other.data.len() - 1 || (other.len - (i * 8) > tail_space) {
-                let carry_over = (other_byte << tail_space);
+                let carry_over = (other_byte >> tail_space);
                 new_data.push(carry_over);
             }
         }
@@ -170,9 +170,10 @@ impl Display for TydiBinary {
 
         // Format the last byte with the remaining bits
         if remaining_bits > 0 {
-            let mask = (8 - remaining_bits);
+            // We need to mask the data to get rid of the leading zeros. We do this with all 1's shifted to the right to zero-out any bits outside our length.
+            let mask = 0xFF >> (8-remaining_bits);
             let last_byte = self.data[full_bytes];
-            let masked_bits = last_byte >> mask;
+            let masked_bits = last_byte & mask;
             write!(f, "{:0w$b}", masked_bits, w = remaining_bits)?;
         }
 
@@ -202,10 +203,10 @@ impl Debug for TydiBinary {
             // Process the last, potentially partial, byte
             if remaining_bits > 0 {
                 // The number of bits to extract from the last byte is `remaining_bits`.
-                // We need to shift the data to the right to get rid of the leading zeros
-                // that are not part of the binary string.
-                let shift_amount = 8 - remaining_bits;
-                let masked_bits = self.data[full_bytes] >> shift_amount;
+                // We need to mask the data to get rid of the leading zeros. We do this with all 1's shifted to the right to zero-out any bits outside our length.
+                let mask = 0xFF >> (8-remaining_bits);
+                let last_byte = self.data[full_bytes];
+                let masked_bits = last_byte & mask;
 
                 // For the hexadecimal representation, we just take the full byte
                 // because the hexadecimal string represents the underlying `Vec<u8>`.
@@ -306,7 +307,7 @@ mod tests {
         assert_eq!(string1, "0b1111000010101010");
 
         let bin2 = TydiBinary {
-            data: vec![0b10101010, 0b11110000], // 0xaa, 0xf0
+            data: vec![0b10101010, 0b00001111], // 0xaa, 0x0f
             len: 12,
         };
         let string2 = bin2.to_string();
@@ -320,19 +321,19 @@ mod tests {
         let package_string = package.to_string();
         assert_eq!(package_string, "0b01000011101");
 
-        let bin3 = TydiBinary::new(vec![0xAB, 0xC0], 12);
+        let bin3 = TydiBinary::new(vec![0xAB, 0x0C], 12);
         // 0xAB = 1010 1011, 0xC0 = 1100 0000
         let string3 = bin3.to_string();
         assert_eq!(string3, "0b110010101011");
 
-        let bin4 = TydiBinary::new(vec![0xDE, 0xF0], 16);
-        // 0xAB = 1101 1110, 0xF0 = 1111 0000
+        let bin4 = TydiBinary::new(vec![0xDE, 0x0F], 16);
+        // 0xDE = 1101 1110, 0x0F = 0000 1111
         let string4 = bin4.to_string();
-        assert_eq!(string4, "0b1111000011011110");
+        assert_eq!(string4, "0b0000111111011110");
 
         let result2 = bin3.concatenate(&bin4);
         let result_string2 = result2.to_string();
-        assert_eq!(result_string2, "0b1111000011011110110010101011");
+        assert_eq!(result_string2, "0b0000111111011110110010101011");
         let (recovered3, recovered4) = result2.split(12);
         println!("recovered3: {:?} (recovered4: {:?})\n", recovered3, recovered4);
 
