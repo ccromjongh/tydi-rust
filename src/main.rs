@@ -1,10 +1,13 @@
 use serde::Deserialize;
 use std::fs;
 use std::error::Error;
-use std::ops::Deref;
+use chrono::{DateTime, Utc};
 use rust_tydi_packages::{binary::TydiBinary, TydiPacket, TydiVec, drilling::*};
 // Define the data structures based on the JSON schema.
 // We use `serde::Deserialize` to automatically derive the deserialization logic.
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
+struct MyDate(DateTime<Utc>);
 
 // Represents a single comment.
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
@@ -13,7 +16,7 @@ struct Comment {
     comment_id: u32,
     author: Author,
     content: String,
-    created_at: String,
+    created_at: MyDate,
     likes: u32,
     // The `in_reply_to_comment_id` field is optional, so we use `Option<u32>`.
     in_reply_to_comment_id: Option<u32>,
@@ -35,41 +38,24 @@ struct Post {
     title: String,
     content: String,
     author: Author,
-    created_at: String,
-    updated_at: String,
+    created_at: MyDate,
+    updated_at: MyDate,
     tags: Vec<String>,
     likes: u32,
     shares: u32,
     comments: Vec<Comment>,
 }
 
+impl From<MyDate> for TydiBinary {
+    fn from(value: MyDate) -> Self {
+        let temp: u64 = value.0.timestamp() as u64;
+        temp.into()
+    }
+}
+
 // The root data structure, which is a vector of posts.
 #[derive(Debug, Deserialize)]
 struct Posts(Vec<Post>);
-
-// Tydi data-structures
-// Each "exploded" version contains all non-sequence data, the constant length ground types such as numbers and booleans
-#[derive(Debug, Clone)]
-struct AuthorExploded {
-    user_id: u32,
-}
-
-#[derive(Debug, Clone)]
-struct PostExploded {
-    post_id: u32,
-    author: AuthorExploded,
-    likes: u32,
-    shares: u32,
-}
-
-#[derive(Debug, Clone)]
-struct CommentExploded {
-    comment_id: u32,
-    author: AuthorExploded,
-    likes: u32,
-    // The `in_reply_to_comment_id` field is optional, so we use `Option<u32>`.
-    in_reply_to_comment_id: Option<u32>,
-}
 
 struct MyTypeStreams {
     subStream: Vec<TydiBinary>,
@@ -105,10 +91,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let posts_tydi = posts.convert();
-    let posts_binary = posts_tydi.finish(128);
+    let posts_binary = posts_tydi.finish(256);
     let tags_tydi = posts_tydi.drill(|e| e.tags.clone()).drill(|e| e.as_bytes().to_vec());
     let comments_tydi = posts_tydi.drill(|e| e.comments.clone());
-    let comments_binary = comments_tydi.finish(96);
+    let comments_binary = comments_tydi.finish(160);
     let comment_author_tydi = comments_tydi.drill(|e| e.author.username.as_bytes().to_vec());
     let comment_author_binary = comment_author_tydi.finish(8);
     let my_var = 5;
@@ -134,6 +120,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 pub struct PostNonVecs {
     pub post_id: u32,
     pub author: AuthorNonVecs,
+    pub created_at: MyDate,
+    pub updated_at: MyDate,
     pub likes: u32,
     pub shares: u32,
 }
@@ -142,8 +130,6 @@ pub struct PostNonVecs {
 pub struct PostVecs {
     pub title: String,
     pub content: String,
-    pub created_at: String,
-    pub updated_at: String,
     pub tags: Vec<String>,
     pub comments: Vec<Comment>,
 }
@@ -152,9 +138,11 @@ impl From<Post> for TydiBinary {
     fn from(value: Post) -> Self {
         let post_id: TydiBinary = value.post_id.into();
         let author: TydiBinary = value.author.into();
+        let created_at: TydiBinary = value.created_at.into();
+        let updated_at: TydiBinary = value.updated_at.into();
         let likes: TydiBinary = value.likes.into();
         let shares: TydiBinary = value.shares.into();
-        post_id.concatenate(&author).concatenate(&likes).concatenate(&shares)
+        post_id.concatenate(&author).concatenate(&created_at).concatenate(&updated_at).concatenate(&likes).concatenate(&shares)
     }
 }
 
@@ -169,14 +157,15 @@ impl From<Comment> for TydiBinary {
     fn from(value: Comment) -> Self {
         let comment_id: TydiBinary = value.comment_id.into();
         let author: TydiBinary = value.author.into();
+        let created_at: TydiBinary = value.created_at.into();
         let likes: TydiBinary = value.likes.into();
-        comment_id.concatenate(&author).concatenate(&likes)
+        comment_id.concatenate(&author).concatenate(&created_at).concatenate(&likes)
     }
 }
 
-impl From<Post> for PostNonVecs { fn from(value: Post) -> Self { Self { post_id: value.post_id, author: value.author.into(), likes: value.likes, shares: value.shares } } }
+impl From<Post> for PostNonVecs { fn from(value: Post) -> Self { Self { post_id: value.post_id, author: value.author.into(), created_at: value.created_at, updated_at: value.updated_at, likes: value.likes, shares: value.shares } } }
 
-impl From<Post> for PostVecs { fn from(value: Post) -> Self { Self { title: value.title, content: value.content, created_at: value.created_at, updated_at: value.updated_at, tags: value.tags, comments: value.comments } } }
+impl From<Post> for PostVecs { fn from(value: Post) -> Self { Self { title: value.title, content: value.content, tags: value.tags, comments: value.comments } } }
 
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -197,6 +186,7 @@ impl From<Author> for AuthorVecs { fn from(value: Author) -> Self { Self { usern
 pub struct CommentNonVecs {
     pub comment_id: u32,
     pub author: Author,
+    pub created_at: MyDate,
     pub likes: u32,
     pub in_reply_to_comment_id: Option<u32>,
 }
@@ -204,9 +194,8 @@ pub struct CommentNonVecs {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CommentVecs {
     pub content: String,
-    pub created_at: String,
 }
 
-impl From<Comment> for CommentNonVecs { fn from(value: Comment) -> Self { Self { comment_id: value.comment_id, author: value.author, likes: value.likes, in_reply_to_comment_id: value.in_reply_to_comment_id } } }
+impl From<Comment> for CommentNonVecs { fn from(value: Comment) -> Self { Self { comment_id: value.comment_id, author: value.author, created_at: value.created_at, likes: value.likes, in_reply_to_comment_id: value.in_reply_to_comment_id } } }
 
-impl From<Comment> for CommentVecs { fn from(value: Comment) -> Self { Self { content: value.content, created_at: value.created_at } } }
+impl From<Comment> for CommentVecs { fn from(value: Comment) -> Self { Self { content: value.content } } }
