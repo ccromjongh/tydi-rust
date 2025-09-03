@@ -280,6 +280,14 @@ impl From<bool> for TydiBinary {
     }
 }
 
+impl FromTydiBinary for bool {
+    fn from_tydi_binary(value: TydiBinary) -> (Self, TydiBinary) {
+        let (bin1, bin2) = value.split(1);
+        let b_value: bool = bin1.data[0] != 0;
+        (b_value, bin2)
+    }
+}
+
 impl From<Vec<bool>> for TydiBinary {
     fn from(value: Vec<bool>) -> Self {
         let bit_count = value.len();
@@ -309,6 +317,44 @@ impl From<Vec<bool>> for TydiBinary {
             packed_bytes.push(byte);
         }
         TydiBinary { data: packed_bytes, len: bit_count }
+    }
+}
+
+impl<T> FromTydiBinary for Vec<T> where T: FromTydiBinary {
+    fn from_tydi_binary(value: TydiBinary) -> (Self, TydiBinary) {
+        let (val, bin2) = T::from_tydi_binary(value);
+        todo!();
+    }
+}
+
+impl From<TydiBinary> for Vec<bool> {
+    fn from(value: TydiBinary) -> Self {
+        let packed_bytes = &value.data;
+        let bit_count = packed_bytes.len();
+
+        // Pre-allocate the vector with the exact size for efficiency.
+        let mut bools = Vec::with_capacity(bit_count);
+
+        // Iterate through each packed byte.
+        for &byte in packed_bytes {
+            // Iterate through each of the 8 bits in the byte.
+            for i in 0..8 {
+                // Check if the current bit is set using a bitwise AND operation.
+                // (byte & (1 << i)) creates a value with only the i-th bit set if it was
+                // set in the original byte. Comparing this to 0 checks if it was a 1.
+                if (byte & (1 << i)) != 0 {
+                    bools.push(true);
+                } else {
+                    bools.push(false);
+                }
+            }
+        }
+
+        // Truncate the vector to the original boolean count. This is important
+        // to handle the case where the last byte was padded with zeros.
+        bools.truncate(bit_count);
+
+        bools
     }
 }
 
