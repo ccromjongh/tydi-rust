@@ -173,7 +173,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_packing() {
+    fn test_struct_packing() {
         #[derive(Debug, PartialEq, Eq, Clone)]
         struct Comment {
             comment_id: u32,
@@ -248,5 +248,18 @@ mod tests {
         let reconstructed: Comment = bin.into();
         println!("{:?}", reconstructed);
         println!("done");
+    }
+
+    #[test]
+    fn test_packing() {
+        let num_bytes: [u8; 8] = [0xed, 0x1, 0x0, 0x0, 0x20, 0x7, 0x0, 0x0];
+        let num = u64::from_ne_bytes(num_bytes);
+        let packet = TydiPacket {
+            data: Some(num),
+            last: vec![true],
+        };
+        let bin = packet.to_binary(64);
+        let reconstructed: TydiPacket<u64> = TydiPacket::from_binary(bin, 1);
+        assert_eq!(reconstructed.data, Some(num));
     }
 }
