@@ -1,5 +1,6 @@
 use std::fmt::{Debug, Display};
 use bytemuck::{bytes_of, cast, cast_slice, from_bytes_mut, NoUninit, Pod};
+use crate::binary::{FromTydiBinary, TydiBinary};
 
 pub mod drilling;
 pub mod binary;
@@ -8,6 +9,37 @@ pub mod binary;
 pub struct TydiPacket<T> {
     pub data: Option<T>,
     pub last: Vec<bool>,
+}
+
+impl<T> TydiPacket<T> {
+    pub fn to_binary(self, size: usize) -> TydiBinary where T: Into<TydiBinary> {
+        let strobe: TydiBinary = self.data.is_some().into();
+        let last_bin: TydiBinary = self.last.into();
+        // el.data.and_then(|data| { Some(data.into()) }).or(Some(TydiBinary { data: vec![], len: 0 }))
+        let data_bin = if let Some(data) = self.data {
+            let binary = data.into();
+            assert_eq!(binary.len, size, "resulting binary not of expected size");
+            binary
+        } else {
+            let n_bytes = size.div_ceil(8);
+            TydiBinary { data: vec![0u8; n_bytes], len: size }
+        };
+        strobe.concatenate(&last_bin).concatenate(&data_bin)
+    }
+
+    pub fn from_binary(val: TydiBinary, dim: usize) -> Self where T: FromTydiBinary {
+        let (strobe, res) = bool::from_tydi_binary(val);
+        let (last, res) = res.split(dim);
+        let last: Vec<bool> = last.into();
+
+        let data: Option<T> = if strobe {
+            let (item, _) = T::from_tydi_binary(res);
+            Some(item)
+        } else {
+            None
+        };
+        Self { data, last }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -141,7 +173,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_packing() {
+    fn test_struct_packing() {
         #[derive(Debug, PartialEq, Eq, Clone)]
         struct Comment {
             comment_id: u32,
@@ -216,5 +248,18 @@ mod tests {
         let reconstructed: Comment = bin.into();
         println!("{:?}", reconstructed);
         println!("done");
+    }
+
+    #[test]
+    fn test_packing() {
+        let num_bytes: [u8; 8] = [0xed, 0x1, 0x0, 0x0, 0x20, 0x7, 0x0, 0x0];
+        let num = u64::from_ne_bytes(num_bytes);
+        let packet = TydiPacket {
+            data: Some(num),
+            last: vec![true],
+        };
+        let bin = packet.to_binary(64);
+        let reconstructed: TydiPacket<u64> = TydiPacket::from_binary(bin, 1);
+        assert_eq!(reconstructed.data, Some(num));
     }
 }
