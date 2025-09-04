@@ -79,12 +79,13 @@ impl TydiBinary {
         // Part 1: First TydiBinary
         let mut data1 = Vec::new();
         let full_bytes1 = len1 / 8;
-        let rem_bits1 = len1 % 8;
+        let bit_offset = len1 % 8;
         for i in 0..full_bytes1 {
             data1.push(self.data[i]);
         }
-        if rem_bits1 > 0 {
-            let byte_to_push = self.data[full_bytes1] & (!0u8 << (8 - rem_bits1));
+        // Add leftover bits that are not a full byte
+        if bit_offset > 0 {
+            let byte_to_push = self.data[full_bytes1] & (!0u8 >> (8 - bit_offset));
             data1.push(byte_to_push);
         }
         let bin1 = TydiBinary::new(data1, len1);
@@ -93,54 +94,29 @@ impl TydiBinary {
         let mut data2 = Vec::new();
         let full_bytes2 = len2 / 8;
         let rem_bits2 = len2 % 8;
-        let start_byte_index = len1 / 8;
-        let start_bit_offset = len1 % 8;
 
-        // Handle the first, potentially partial, byte
-        let mut current_byte = 0;
-        if start_bit_offset > 0 {
-            let next_byte_index = start_byte_index + 1;
-            let current_byte_original = self.data[start_byte_index];
+        let bytes_to_add = full_bytes2 + if rem_bits2 > 0 { 1 } else { 0 };
+        // If the first binary ended at a clean border we need to subtract one to get the index of the last accessed byte
+        let start_index = full_bytes1 - if bit_offset > 0 { 0 } else { 1 };
+        for i in start_index..(start_index+bytes_to_add) {
+            let next_byte_index = i + 1;
+
+            let current_byte_original = self.data[i];
             let next_byte_original = if next_byte_index < self.data.len() {
                 self.data[next_byte_index]
             } else {
                 0
             };
 
-            let remaining_bits_in_byte = 8 - start_bit_offset;
-            current_byte = current_byte_original << start_bit_offset;
-            current_byte |= next_byte_original >> remaining_bits_in_byte;
-            data2.push(current_byte);
-        } else {
-            // Start on a byte boundary, so the first byte is just the first byte of the second part.
-            if len2 > 0 {
-                data2.push(self.data[start_byte_index]);
-            }
-        }
-
-        // Handle all full bytes after the first partial byte.
-        let bytes_to_add = (len2 - (8 - start_bit_offset) % 8 + 7) / 8;
-        for i in 0..bytes_to_add {
-            let original_byte_index = start_byte_index + if start_bit_offset > 0 { 1 } else { 0 } + i;
-            let next_byte_index = original_byte_index + 1;
-
-            let current_byte_original = self.data[original_byte_index];
-            let next_byte_original = if next_byte_index < self.data.len() {
-                self.data[next_byte_index]
+            let new_byte = if (bit_offset == 0) {
+                next_byte_original
             } else {
-                0
+                (current_byte_original >> bit_offset) | (next_byte_original << (8 - bit_offset))
             };
-
-            let new_byte = if (start_bit_offset == 0)
-            { next_byte_original }
-            else
-            { (current_byte_original << start_bit_offset) | (next_byte_original >> (8 - start_bit_offset)) };
             data2.push(new_byte);
         }
 
-        // Handle the final partial byte of the second part.
         let bin2 = TydiBinary::new(data2, len2);
-
         (bin1, bin2)
     }
 
@@ -401,6 +377,10 @@ mod tests {
         assert_eq!(result_string2, "0b0000111111011110110010101011");
         let (recovered3, recovered4) = result2.split(12);
         println!("recovered3: {:?} (recovered4: {:?})\n", recovered3, recovered4);
+        assert_eq!(recovered3.data, vec![0xAB, 0x0C]);
+        assert_eq!(recovered3.to_string(), "0b110010101011");
+        assert_eq!(recovered4.data, vec![0xDE, 0x0F]);
+        assert_eq!(recovered4.to_string(), "0b0000111111011110");
 
         let number = 123456789u64;
         let tydi_number: TydiBinary = number.into();
