@@ -49,7 +49,7 @@ struct Post {
 
 impl From<MyDate> for TydiBinary {
     fn from(value: MyDate) -> Self {
-        let temp: u64 = value.0.timestamp() as u64;
+        let temp: u64 = value.0.timestamp_millis() as u64;
         temp.into()
     }
 }
@@ -57,7 +57,7 @@ impl From<MyDate> for TydiBinary {
 impl FromTydiBinary for MyDate {
     fn from_tydi_binary(value: TydiBinary) -> (Self, TydiBinary) {
         let (int_value, res) = i64::from_tydi_binary(value);
-        let dt = DateTime::from_timestamp(int_value, 0).unwrap();
+        let dt = DateTime::from_timestamp_millis(int_value).unwrap();
         (MyDate(dt), res)
     }
 }
@@ -106,10 +106,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let comments_binary = comments_tydi.finish(160);
     let comment_author_tydi = comments_tydi.drill(|e| e.author.username.as_bytes().to_vec());
     let comment_author_binary = comment_author_tydi.finish(8);
-    let my_var = 5;
 
     println!("author stream binary: {:?}", comment_author_binary.iter().map(|e| e.to_string()).collect::<Vec<String>>());
     println!("author stream native: {:?}", posts.iter().flat_map(|e| e.comments.clone()).flat_map(|e| e.author.username.as_bytes().iter().map(|e| format!("{:08b}", e)).collect::<Vec<_>>()).collect::<Vec<_>>());
+
+    println!("posts binary: {:?}", posts_binary);
+    let posts_recreated = packets_from_binaries::<Post>(posts_binary, 1);
+    let my_var = 5;
 
     /*let exploded_posts: Vec<PostNonVecs> = posts.iter().map(|p| PostNonVecs::from(p.clone())).collect();
     let posts_tydi: TydiVec<PostNonVecs> = exploded_posts.into();
@@ -179,6 +182,12 @@ impl From<TydiBinary> for Post {
     }
 }
 
+impl FromTydiBinary for Post {
+    fn from_tydi_binary(value: TydiBinary) -> (Self, TydiBinary) {
+        (value.into(), TydiBinary::empty())
+    }
+}
+
 impl From<Author> for TydiBinary {
     fn from(value: Author) -> Self {
         let author_id: TydiBinary = value.user_id.into();
@@ -243,3 +252,19 @@ pub struct CommentVecs {
 impl From<Comment> for CommentNonVecs { fn from(value: Comment) -> Self { Self { comment_id: value.comment_id, author: value.author, created_at: value.created_at, likes: value.likes, in_reply_to_comment_id: value.in_reply_to_comment_id } } }
 
 impl From<Comment> for CommentVecs { fn from(value: Comment) -> Self { Self { content: value.content } } }
+
+#[cfg(test)]
+mod tests {
+    use chrono::{DateTime, Timelike, Utc};
+    use rust_tydi_packages::binary::{FromTydiBinary, TydiBinary};
+    use crate::MyDate;
+
+    #[test]
+    fn test_date_time_packing() {
+        let dt_original = Utc::now().with_nanosecond(0).unwrap();
+        let dt = MyDate(dt_original);
+        let binary: TydiBinary = dt.clone().into();
+        let (reconstructed, _) = MyDate::from_tydi_binary(binary);
+        assert_eq!(reconstructed, dt);
+    }
+}

@@ -1,5 +1,5 @@
 use crate::binary::TydiBinary;
-use crate::TydiPacket;
+use crate::{binary, TydiPacket};
 
 pub trait TydiConvert<T> {
     fn convert(&self) -> Vec<TydiPacket<T>>;
@@ -17,6 +17,10 @@ impl<T: Clone> TydiConvert<T> for Vec<T> {
         let len = self.len();
         self.iter().enumerate().map(|(i, el)| TydiPacket { data: Some((*el).clone()), last: vec![i == len-1] }).collect()
     }
+}
+
+pub fn packets_from_binaries<T: binary::FromTydiBinary>(value: Vec<TydiBinary>, dim: usize) -> Vec<TydiPacket<T>> {
+    value.iter().map(|el| TydiPacket::from_binary(el.clone(), dim)).collect()
 }
 
 pub trait TydiDrill<T: Clone, B> {
