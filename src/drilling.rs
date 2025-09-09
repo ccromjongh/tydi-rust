@@ -28,6 +28,11 @@ pub trait TydiDrill<T: Clone, B> {
     where
         F: Fn(T) -> B,
         B: IntoIterator;
+
+    fn inject<F>(& mut self, f: F, data: Vec<TydiPacket<B>>) -> &mut Self
+    where
+        F: Fn(&mut T) -> &mut Vec<B>,
+        B: Clone;
 }
 
 impl<T: Clone, B> TydiDrill<T, B> for Vec<TydiPacket<T>> {
@@ -70,6 +75,31 @@ impl<T: Clone, B> TydiDrill<T, B> for Vec<TydiPacket<T>> {
             };
             new_vec
         }).collect()
+    }
+
+    fn inject<F>(&mut self, f: F, data: Vec<TydiPacket<B>>) -> &mut Self
+    where
+        F: Fn(&mut T) -> &mut Vec<B>,
+        B: Clone
+    {
+        let mut data_iter = data.iter();
+        for x in self.iter_mut() {
+            let self_option = x.data.as_mut();
+            if self_option.is_none() {
+                data_iter.next();
+                continue
+            }
+            let self_data = self_option.unwrap();
+            let mut target = f(self_data);
+            while let Some(el) = data_iter.next() {
+                if el.data.is_none() { break }
+                target.push(el.data.clone().unwrap());
+                if *el.last.last().unwrap() == true {
+                    break
+                }
+            }
+        }
+        self
     }
 }
 

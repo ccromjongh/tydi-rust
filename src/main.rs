@@ -111,7 +111,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("author stream native: {:?}", posts.iter().flat_map(|e| e.comments.clone()).flat_map(|e| e.author.username.as_bytes().iter().map(|e| format!("{:08b}", e)).collect::<Vec<_>>()).collect::<Vec<_>>());
 
     println!("posts binary: {:?}", posts_binary);
-    let posts_recreated = packets_from_binaries::<Post>(posts_binary, 1);
+    let mut posts_recreated = packets_from_binaries::<Post>(posts_binary, 1);
+    let mut comments_recreated = packets_from_binaries::<Comment>(comments_binary, 2);
+    posts_recreated.inject(|el| &mut el.comments, comments_recreated);
+    
+    let comment_author_recreated = packets_from_binaries::<u8>(comment_author_binary, 3);
+    // comments_recreated.inject(|e| e.author.username, comment_author_recreated);
+    // posts_recreated[0].data.unwrap().comments.push()
     let my_var = 5;
 
     /*let exploded_posts: Vec<PostNonVecs> = posts.iter().map(|p| PostNonVecs::from(p.clone())).collect();
@@ -201,6 +207,24 @@ impl FromTydiBinary for Author {
         let author = Self {
             user_id,
             username: "".to_string(),
+        };
+        (author, res)
+    }
+}
+
+impl FromTydiBinary for Comment {
+    fn from_tydi_binary(value: TydiBinary) -> (Self, TydiBinary) {
+        let (comment_id, res) = u32::from_tydi_binary(value);
+        let (author, res) = Author::from_tydi_binary(res);
+        let (created_at, res) = MyDate::from_tydi_binary(res);
+        let (likes, res) = u32::from_tydi_binary(res);
+        let author = Self {
+            comment_id,
+            author,
+            content: "".to_string(),
+            created_at,
+            likes,
+            in_reply_to_comment_id: None,
         };
         (author, res)
     }
