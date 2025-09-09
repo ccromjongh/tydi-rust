@@ -306,7 +306,7 @@ impl<T> FromTydiBinary for Vec<T> where T: FromTydiBinary {
 impl From<TydiBinary> for Vec<bool> {
     fn from(value: TydiBinary) -> Self {
         let packed_bytes = &value.data;
-        let bit_count = packed_bytes.len();
+        let bit_count = value.len;
 
         // Pre-allocate the vector with the exact size for efficiency.
         let mut bools = Vec::with_capacity(bit_count);
