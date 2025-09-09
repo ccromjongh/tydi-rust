@@ -1,5 +1,5 @@
 use crate::binary::TydiBinary;
-use crate::{binary, TydiPacket, TydiStream};
+use crate::{binary, TydiBinaryStream, TydiPacket, TydiStream};
 
 pub trait TydiConvert<T> {
     fn convert(&self) -> TydiStream<T>;
@@ -19,11 +19,15 @@ impl<T: Clone> TydiConvert<T> for Vec<T> {
     }
 }
 
-pub fn packets_from_binaries<T: binary::FromTydiBinary>(value: Vec<TydiBinary>, dim: usize) -> TydiStream<T> {
-    TydiStream(value.iter().map(|el| TydiPacket::from_binary(el.clone(), dim)).collect())
+pub fn packets_from_binaries<T: binary::FromTydiBinary>(value: TydiBinaryStream, dim: usize) -> TydiStream<T> {
+    TydiStream(value.0.iter().map(|el| TydiPacket::from_binary(el.clone(), dim)).collect())
 }
 
 impl<T: Clone> TydiStream<T> {
+    pub fn empty() -> Self {
+        TydiStream(vec![])
+    }
+
     /// "Drill" into the structure to the iterable field referenced in [f], creating a new dimension in the `last` data.
     pub fn drill<F, B>(&self, f: F) -> TydiStream<<B as IntoIterator>::Item>
     where
@@ -124,6 +128,11 @@ impl<T: Clone> TydiStream<T> {
         result
     }
 
+    /// Consuming the final dimension in the `last` data and emit a `Vec`.
+    pub fn unpack(self) -> Vec<T> {
+        self.0.iter().map(|el| el.data.clone().unwrap()).collect()
+    }
+
     /// Creates one layer of `Vec` inside the packet by consuming the lowest dimension in the `last` data.
     pub fn vectorize_inner(self) -> TydiStream<Vec<T>> {
         // The top vector gets shorter as items are placed in the inner vectors instead.
@@ -162,11 +171,16 @@ impl TydiStream<u8> {
 }
 
 pub trait TydiPacktestToBinary {
-    fn finish(&self, size: usize) -> Vec<TydiBinary>;
+    fn finish(&self, size: usize) -> TydiBinaryStream;
+    fn finish_vec(&self, size: usize) -> Vec<TydiBinary>;
 }
 
 impl<T: Into<TydiBinary> + Clone> TydiPacktestToBinary for TydiStream<T> {
-    fn finish(&self, size: usize) -> Vec<TydiBinary> {
+    fn finish(&self, size: usize) -> TydiBinaryStream {
+        TydiBinaryStream(self.finish_vec(size))
+    }
+
+    fn finish_vec(&self, size: usize) -> Vec<TydiBinary> {
         self.0.iter().map(|el| el.clone().to_binary(size)).collect()
     }
 }
