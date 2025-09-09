@@ -142,17 +142,16 @@ impl<T: Clone> TydiDrill<T> for Vec<TydiPacket<T>> {
                 inner_result.push(x.data.clone().unwrap());
             }
             if last_el_in_dim {
-                if x.data.is_some() {
-                    result.push(TydiPacket {
-                        data: Some(inner_result),
-                        last: last_copy,
-                    });
-                } else {
-                    result.push(TydiPacket {
-                        data: None,
-                        last: last_copy,
-                    });
-                }
+                result.push(TydiPacket {
+                    data: Some(inner_result),
+                    last: last_copy,
+                });
+                inner_result = Vec::new();
+            } else if x.data.is_none() {
+                result.push(TydiPacket {
+                    data: None,
+                    last: last_copy,
+                });
                 inner_result = Vec::new();
             }
         }

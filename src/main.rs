@@ -120,6 +120,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let tags_recreated = packets_from_binaries::<u8>(tags_binary, 3);
     let tags_recreated2 = tags_recreated.vectorize_inner();
     let tags_recreated3 = tags_recreated2.into_iter().map(|e| e.map_data(|x| String::from_utf8(x).unwrap())).collect::<Vec<TydiPacket<String>>>();
+    posts_recreated.inject(|el| &mut el.tags, tags_recreated3);
     // comments_recreated.inject(|e| e.author.username, comment_author_recreated);
     // posts_recreated[0].data.unwrap().comments.push()
     let my_var = 5;
