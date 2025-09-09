@@ -153,6 +153,14 @@ impl<T: Clone> TydiStream<T> {
     }
 }
 
+impl TydiStream<u8> {
+    pub fn solidify_into_strings(self) -> TydiStream<String> {
+        let vectorized = self.vectorize_inner();
+        let v = vectorized.0.into_iter().map(|e| e.map_data(|x| String::from_utf8(x).unwrap())).collect::<Vec<TydiPacket<String>>>();
+        TydiStream(v)
+    }
+}
+
 pub trait TydiPacktestToBinary {
     fn finish(&self, size: usize) -> Vec<TydiBinary>;
 }
