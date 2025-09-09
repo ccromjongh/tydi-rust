@@ -102,6 +102,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let posts_tydi = posts.convert();
     let posts_binary = posts_tydi.finish(256);
     let tags_tydi = posts_tydi.drill(|e| e.tags.clone()).drill(|e| e.as_bytes().to_vec());
+    let tags_binary  = tags_tydi.finish(8);
     let comments_tydi = posts_tydi.drill(|e| e.comments.clone());
     let comments_binary = comments_tydi.finish(160);
     let comment_author_tydi = comments_tydi.drill(|e| e.author.username.as_bytes().to_vec());
@@ -116,6 +117,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     posts_recreated.inject(|el| &mut el.comments, comments_recreated);
     
     let comment_author_recreated = packets_from_binaries::<u8>(comment_author_binary, 3);
+    let tags_recreated = packets_from_binaries::<u8>(tags_binary, 3);
+    let tags_recreated2 = tags_recreated.vectorize_inner();
+    let tags_recreated3 = tags_recreated2.into_iter().map(|e| e.map_data(|x| String::from_utf8(x).unwrap())).collect::<Vec<TydiPacket<String>>>();
     // comments_recreated.inject(|e| e.author.username, comment_author_recreated);
     // posts_recreated[0].data.unwrap().comments.push()
     let my_var = 5;

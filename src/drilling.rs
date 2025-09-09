@@ -23,20 +23,28 @@ pub fn packets_from_binaries<T: binary::FromTydiBinary>(value: Vec<TydiBinary>, 
     value.iter().map(|el| TydiPacket::from_binary(el.clone(), dim)).collect()
 }
 
-pub trait TydiDrill<T: Clone, B> {
-    fn drill<F>(&self, f: F) -> Vec<TydiPacket<<B as IntoIterator>::Item>>
+pub trait TydiDrill<T: Clone> {
+    /// "Drill" into the structure to the iterable field referenced in [f], creating a new dimension in the `last` data.
+    fn drill<F, B>(&self, f: F) -> Vec<TydiPacket<<B as IntoIterator>::Item>>
     where
         F: Fn(T) -> B,
         B: IntoIterator;
 
-    fn inject<F>(& mut self, f: F, data: Vec<TydiPacket<B>>) -> &mut Self
+    /// Inject the [data] in the vector referenced in the function [f] by consuming the lowest dimension in the `last` data.
+    fn inject<F, B>(& mut self, f: F, data: Vec<TydiPacket<B>>) -> &mut Self
     where
         F: Fn(&mut T) -> &mut Vec<B>,
         B: Clone;
+
+    /// Creates one layer of `Vec` by consuming the lowest dimension in the `last` data.
+    fn vectorize(self) -> Vec<Vec<TydiPacket<T>>>;
+
+    /// Creates one layer of `Vec` inside the packet by consuming the lowest dimension in the `last` data.
+    fn vectorize_inner(self) -> Vec<TydiPacket<Vec<T>>>;
 }
 
-impl<T: Clone, B> TydiDrill<T, B> for Vec<TydiPacket<T>> {
-    fn drill<F>(&self, f: F) -> Vec<TydiPacket<<B as IntoIterator>::Item>>
+impl<T: Clone> TydiDrill<T> for Vec<TydiPacket<T>> {
+    fn drill<F, B>(&self, f: F) -> Vec<TydiPacket<<B as IntoIterator>::Item>>
     where
         F: Fn(T) -> B,
         B: IntoIterator
@@ -77,7 +85,7 @@ impl<T: Clone, B> TydiDrill<T, B> for Vec<TydiPacket<T>> {
         }).collect()
     }
 
-    fn inject<F>(&mut self, f: F, data: Vec<TydiPacket<B>>) -> &mut Self
+    fn inject<F, B>(&mut self, f: F, data: Vec<TydiPacket<B>>) -> &mut Self
     where
         F: Fn(&mut T) -> &mut Vec<B>,
         B: Clone
@@ -100,6 +108,55 @@ impl<T: Clone, B> TydiDrill<T, B> for Vec<TydiPacket<T>> {
             }
         }
         self
+    }
+
+    fn vectorize(self) -> Vec<Vec<TydiPacket<T>>> {
+        let mut result: Vec<Vec<TydiPacket<T>>> = Vec::new();
+        let mut inner_result: Vec<TydiPacket<T>> = Vec::new();
+        for x in self.iter() {
+            let mut last_copy = x.last.clone();
+            let last_el_in_dim = last_copy.pop().unwrap();
+            // If the element is the last in the lowest dimension and empty (None) we don't push the item
+            if !(last_el_in_dim && x.data.is_none()) {
+                inner_result.push(TydiPacket {
+                    data: x.data.clone(),
+                    last: last_copy,
+                });
+            }
+            if last_el_in_dim {
+                result.push(inner_result);
+                inner_result = Vec::new();
+            }
+        }
+        result
+    }
+
+    fn vectorize_inner(self) -> Vec<TydiPacket<Vec<T>>> {
+        // The top vector gets shorter as items are placed in the inner vectors instead.
+        let mut result: Vec<TydiPacket<Vec<T>>> = Vec::new();
+        let mut inner_result: Vec<T> = Vec::new();
+        for x in self.iter() {
+            let mut last_copy = x.last.clone();
+            let last_el_in_dim = last_copy.pop().unwrap();
+            if x.data.is_some() {
+                inner_result.push(x.data.clone().unwrap());
+            }
+            if last_el_in_dim {
+                if x.data.is_some() {
+                    result.push(TydiPacket {
+                        data: Some(inner_result),
+                        last: last_copy,
+                    });
+                } else {
+                    result.push(TydiPacket {
+                        data: None,
+                        last: last_copy,
+                    });
+                }
+                inner_result = Vec::new();
+            }
+        }
+        result
     }
 }
 

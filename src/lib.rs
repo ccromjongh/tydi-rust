@@ -40,6 +40,13 @@ impl<T> TydiPacket<T> {
         };
         Self { data, last }
     }
+
+    pub fn map_data<B>(self, f: impl FnOnce(T) -> B) -> TydiPacket<B> {
+        TydiPacket {
+            data: self.data.and_then(|x| Some(f(x))),
+            last: self.last,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
