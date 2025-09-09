@@ -2,7 +2,7 @@ use serde::Deserialize;
 use std::fs;
 use std::error::Error;
 use chrono::{DateTime, Utc};
-use rust_tydi_packages::{binary::TydiBinary, TydiPacket, TydiVec, drilling::*};
+use rust_tydi_packages::{binary::TydiBinary, TydiPacket, drilling::*, TydiStream};
 use rust_tydi_packages::binary::FromTydiBinary;
 // Define the data structures based on the JSON schema.
 // We use `serde::Deserialize` to automatically derive the deserialization logic.
@@ -78,6 +78,10 @@ struct MyTypeProcessed {
     streams: MyTypeStreams,
 }
 
+struct PhysicalStreams {
+    posts: TydiStream<Posts>,
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     // This assumes the JSON file is named 'posts.json' and is in the same directory.
     let json_file_path = "posts.json";
@@ -119,8 +123,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let comment_author_recreated = packets_from_binaries::<u8>(comment_author_binary, 3);
     let tags_recreated = packets_from_binaries::<u8>(tags_binary, 3);
     let tags_recreated2 = tags_recreated.vectorize_inner();
-    let tags_recreated3 = tags_recreated2.into_iter().map(|e| e.map_data(|x| String::from_utf8(x).unwrap())).collect::<Vec<TydiPacket<String>>>();
-    posts_recreated.inject(|el| &mut el.tags, tags_recreated3);
+    let tags_recreated3 = tags_recreated2.0.into_iter().map(|e| e.map_data(|x| String::from_utf8(x).unwrap())).collect::<Vec<TydiPacket<String>>>();
+    posts_recreated.inject_vec(|el| &mut el.tags, tags_recreated3);
     // comments_recreated.inject(|e| e.author.username, comment_author_recreated);
     // posts_recreated[0].data.unwrap().comments.push()
     let my_var = 5;

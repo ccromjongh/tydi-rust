@@ -1,59 +1,40 @@
 use crate::binary::TydiBinary;
-use crate::{binary, TydiPacket};
+use crate::{binary, TydiPacket, TydiStream};
 
 pub trait TydiConvert<T> {
-    fn convert(&self) -> Vec<TydiPacket<T>>;
+    fn convert(&self) -> TydiStream<T>;
 }
 
 impl<T: Clone> TydiConvert<T> for &[T] {
-    fn convert(&self) -> Vec<TydiPacket<T>> {
+    fn convert(&self) -> TydiStream<T> {
         let len = self.len();
-        self.iter().enumerate().map(|(i, el)| TydiPacket { data: Some((*el).clone()), last: vec![i == len-1] }).collect()
+        TydiStream(self.iter().enumerate().map(|(i, el)| TydiPacket { data: Some((*el).clone()), last: vec![i == len-1] }).collect())
     }
 }
 
 impl<T: Clone> TydiConvert<T> for Vec<T> {
-    fn convert(&self) -> Vec<TydiPacket<T>> {
+    fn convert(&self) -> TydiStream<T> {
         let len = self.len();
-        self.iter().enumerate().map(|(i, el)| TydiPacket { data: Some((*el).clone()), last: vec![i == len-1] }).collect()
+        TydiStream(self.iter().enumerate().map(|(i, el)| TydiPacket { data: Some((*el).clone()), last: vec![i == len-1] }).collect())
     }
 }
 
-pub fn packets_from_binaries<T: binary::FromTydiBinary>(value: Vec<TydiBinary>, dim: usize) -> Vec<TydiPacket<T>> {
-    value.iter().map(|el| TydiPacket::from_binary(el.clone(), dim)).collect()
+pub fn packets_from_binaries<T: binary::FromTydiBinary>(value: Vec<TydiBinary>, dim: usize) -> TydiStream<T> {
+    TydiStream(value.iter().map(|el| TydiPacket::from_binary(el.clone(), dim)).collect())
 }
 
-pub trait TydiDrill<T: Clone> {
+impl<T: Clone> TydiStream<T> {
     /// "Drill" into the structure to the iterable field referenced in [f], creating a new dimension in the `last` data.
-    fn drill<F, B>(&self, f: F) -> Vec<TydiPacket<<B as IntoIterator>::Item>>
-    where
-        F: Fn(T) -> B,
-        B: IntoIterator;
-
-    /// Inject the [data] in the vector referenced in the function [f] by consuming the lowest dimension in the `last` data.
-    fn inject<F, B>(& mut self, f: F, data: Vec<TydiPacket<B>>) -> &mut Self
-    where
-        F: Fn(&mut T) -> &mut Vec<B>,
-        B: Clone;
-
-    /// Creates one layer of `Vec` by consuming the lowest dimension in the `last` data.
-    fn vectorize(self) -> Vec<Vec<TydiPacket<T>>>;
-
-    /// Creates one layer of `Vec` inside the packet by consuming the lowest dimension in the `last` data.
-    fn vectorize_inner(self) -> Vec<TydiPacket<Vec<T>>>;
-}
-
-impl<T: Clone> TydiDrill<T> for Vec<TydiPacket<T>> {
-    fn drill<F, B>(&self, f: F) -> Vec<TydiPacket<<B as IntoIterator>::Item>>
+    pub fn drill<F, B>(&self, f: F) -> TydiStream<<B as IntoIterator>::Item>
     where
         F: Fn(T) -> B,
         B: IntoIterator
     {
         type ResultType<B> = Vec<TydiPacket<<B as IntoIterator>::Item>>;
 
-        let d = self.first().and_then(|el| Some(el.last.len())).unwrap_or(0);
+        let d = self.0.first().and_then(|el| Some(el.last.len())).unwrap_or(0);
         // Map through existing items in our vector of packets
-        self.iter().flat_map(|el| {
+        let v = self.0.iter().flat_map(|el| {
             let el = (*el).clone();
             let new_lasts = [el.last.clone(), vec![false]].concat();
             // If the packet contains data
@@ -82,16 +63,27 @@ impl<T: Clone> TydiDrill<T> for Vec<TydiPacket<T>> {
                 }]
             };
             new_vec
-        }).collect()
+        }).collect();
+        TydiStream(v)
     }
 
-    fn inject<F, B>(&mut self, f: F, data: Vec<TydiPacket<B>>) -> &mut Self
+    /// Inject the [data] in the vector referenced in the function [f] by consuming the lowest dimension in the `last` data.
+    pub fn inject<F, B>(&mut self, f: F, data: TydiStream<B>) -> &mut Self
+    where
+        F: Fn(&mut T) -> &mut Vec<B>,
+        B: Clone
+    {
+        self.inject_vec(f, data.0)
+    }
+
+    /// Inject the [data] in the vector referenced in the function [f] by consuming the lowest dimension in the `last` data.
+    pub fn inject_vec<F, B>(&mut self, f: F, data: Vec<TydiPacket<B>>) -> &mut Self
     where
         F: Fn(&mut T) -> &mut Vec<B>,
         B: Clone
     {
         let mut data_iter = data.iter();
-        for x in self.iter_mut() {
+        for x in self.0.iter_mut() {
             let self_option = x.data.as_mut();
             if self_option.is_none() {
                 data_iter.next();
@@ -110,10 +102,11 @@ impl<T: Clone> TydiDrill<T> for Vec<TydiPacket<T>> {
         self
     }
 
-    fn vectorize(self) -> Vec<Vec<TydiPacket<T>>> {
+    /// Creates one layer of `Vec` by consuming the lowest dimension in the `last` data.
+    pub fn vectorize(self) -> Vec<Vec<TydiPacket<T>>> {
         let mut result: Vec<Vec<TydiPacket<T>>> = Vec::new();
         let mut inner_result: Vec<TydiPacket<T>> = Vec::new();
-        for x in self.iter() {
+        for x in self.0.iter() {
             let mut last_copy = x.last.clone();
             let last_el_in_dim = last_copy.pop().unwrap();
             // If the element is the last in the lowest dimension and empty (None) we don't push the item
@@ -131,11 +124,12 @@ impl<T: Clone> TydiDrill<T> for Vec<TydiPacket<T>> {
         result
     }
 
-    fn vectorize_inner(self) -> Vec<TydiPacket<Vec<T>>> {
+    /// Creates one layer of `Vec` inside the packet by consuming the lowest dimension in the `last` data.
+    pub fn vectorize_inner(self) -> TydiStream<Vec<T>> {
         // The top vector gets shorter as items are placed in the inner vectors instead.
         let mut result: Vec<TydiPacket<Vec<T>>> = Vec::new();
         let mut inner_result: Vec<T> = Vec::new();
-        for x in self.iter() {
+        for x in self.0.iter() {
             let mut last_copy = x.last.clone();
             let last_el_in_dim = last_copy.pop().unwrap();
             if x.data.is_some() {
@@ -155,7 +149,7 @@ impl<T: Clone> TydiDrill<T> for Vec<TydiPacket<T>> {
                 inner_result = Vec::new();
             }
         }
-        result
+        TydiStream(result)
     }
 }
 
@@ -163,8 +157,8 @@ pub trait TydiPacktestToBinary {
     fn finish(&self, size: usize) -> Vec<TydiBinary>;
 }
 
-impl<T: Into<TydiBinary> + Clone> TydiPacktestToBinary for Vec<TydiPacket<T>> {
+impl<T: Into<TydiBinary> + Clone> TydiPacktestToBinary for TydiStream<T> {
     fn finish(&self, size: usize) -> Vec<TydiBinary> {
-        self.iter().map(|el| el.clone().to_binary(size)).collect()
+        self.0.iter().map(|el| el.clone().to_binary(size)).collect()
     }
 }

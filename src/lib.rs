@@ -5,6 +5,9 @@ use crate::binary::{FromTydiBinary, TydiBinary};
 pub mod drilling;
 pub mod binary;
 
+#[derive(Debug)]
+pub struct TydiStream<T>(pub Vec<TydiPacket<T>>);
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TydiPacket<T> {
     pub data: Option<T>,
