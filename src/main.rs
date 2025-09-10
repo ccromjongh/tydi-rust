@@ -1,17 +1,17 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::error::Error;
 use chrono::{DateTime, Utc};
-use rust_tydi_packages::{binary::TydiBinary, TydiPacket, TydiVec, drilling::*};
+use rust_tydi_packages::{binary::TydiBinary, TydiPacket, drilling::*, TydiStream, TydiBinaryStream};
 use rust_tydi_packages::binary::FromTydiBinary;
 // Define the data structures based on the JSON schema.
 // We use `serde::Deserialize` to automatically derive the deserialization logic.
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 struct MyDate(DateTime<Utc>);
 
 // Represents a single comment.
-#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Comment {
     comment_id: u32,
@@ -24,7 +24,7 @@ struct Comment {
 }
 
 // Represents the author of a post or comment.
-#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Author {
     user_id: u32,
@@ -32,7 +32,7 @@ struct Author {
 }
 
 // Represents a single post.
-#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Post {
     post_id: u32,
@@ -78,9 +78,99 @@ struct MyTypeProcessed {
     streams: MyTypeStreams,
 }
 
+struct PhysicalStreamsTyped {
+    posts: TydiStream<Post>,
+    post_titles: TydiStream<u8>,
+    post_contents: TydiStream<u8>,
+    post_author_username: TydiStream<u8>,
+    post_tags: TydiStream<u8>,
+    post_comments: TydiStream<Comment>,
+    post_comment_author_username: TydiStream<u8>,
+    post_comment_content: TydiStream<u8>,
+}
+
+impl PhysicalStreamsTyped {
+    pub fn new(posts: Vec<Post>) -> PhysicalStreamsTyped {
+        let posts_tydi = posts.convert();
+        let titles_tydi = posts_tydi.drill(|e| e.title.as_bytes().to_vec());
+        let contents_tydi = posts_tydi.drill(|e| e.content.as_bytes().to_vec());
+        let tags_tydi = posts_tydi.drill(|e| e.tags.clone()).drill(|e| e.as_bytes().to_vec());
+        let comments_tydi = posts_tydi.drill(|e| e.comments.clone());
+        let comment_author_tydi = comments_tydi.drill(|e| e.author.username.as_bytes().to_vec());
+
+        PhysicalStreamsTyped {
+            post_titles: titles_tydi,
+            post_contents: contents_tydi,
+            post_author_username: posts_tydi.drill(|e| e.author.username.as_bytes().to_vec()),
+            post_tags: tags_tydi,
+            post_comment_author_username: comment_author_tydi,
+            post_comment_content: comments_tydi.drill(|e| e.content.as_bytes().to_vec()),
+            post_comments: comments_tydi,
+            posts: posts_tydi,
+        }
+    }
+
+    pub fn reverse(self) -> Vec<Post> {
+        let mut comments_recreated = self.post_comments;
+        comments_recreated.inject_string(|el| &mut el.author.username, self.post_comment_author_username);
+        comments_recreated.inject_string(|el| &mut el.content, self.post_comment_content);
+
+        let mut posts_recreated = self.posts;
+        posts_recreated.inject(|el| &mut el.comments, comments_recreated);
+        let tags_recreated = self.post_tags.solidify_into_strings();
+        posts_recreated.inject(|el| &mut el.tags, tags_recreated);
+        posts_recreated.inject_string(|el| &mut el.title, self.post_titles);
+        posts_recreated.inject_string(|el| &mut el.content, self.post_contents);
+        posts_recreated.inject_string(|el| &mut el.author.username, self.post_author_username);
+
+        posts_recreated.unpack()
+    }
+}
+
+struct PhysicalStreamsBinary {
+    posts: TydiBinaryStream,
+    post_titles: TydiBinaryStream,
+    post_contents: TydiBinaryStream,
+    post_author_username: TydiBinaryStream,
+    post_tags: TydiBinaryStream,
+    post_comments: TydiBinaryStream,
+    post_comment_author_username: TydiBinaryStream,
+    post_comment_content: TydiBinaryStream,
+}
+
+impl PhysicalStreamsBinary {
+    pub fn new(posts: PhysicalStreamsTyped) -> PhysicalStreamsBinary {
+        Self {
+            posts: posts.posts.finish(256),
+            post_titles: posts.post_titles.finish(8),
+            post_contents: posts.post_contents.finish(8),
+            post_author_username: posts.post_author_username.finish(8),
+            post_tags: posts.post_tags.finish(8),
+            post_comments: posts.post_comments.finish(160),
+            post_comment_author_username: posts.post_comment_author_username.finish(8),
+            post_comment_content: posts.post_comment_content.finish(8),
+        }
+    }
+
+    pub fn reverse(self) -> PhysicalStreamsTyped {
+        PhysicalStreamsTyped {
+            posts: packets_from_binaries(self.posts, 1),
+            post_titles: packets_from_binaries(self.post_titles, 2),
+            post_contents: packets_from_binaries(self.post_contents, 2),
+            post_author_username: packets_from_binaries(self.post_author_username, 2),
+            post_tags: packets_from_binaries(self.post_tags, 3),
+            post_comments: packets_from_binaries(self.post_comments, 2),
+            post_comment_author_username: packets_from_binaries(self.post_comment_author_username, 3),
+            post_comment_content: packets_from_binaries(self.post_comment_content, 3),
+        }
+
+    }
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     // This assumes the JSON file is named 'posts.json' and is in the same directory.
     let json_file_path = "posts.json";
+    let recreation_file_path = "posts-rec.json";
 
     // Read the contents of the JSON file into a string.
     let json_data = fs::read_to_string(json_file_path)
@@ -99,31 +189,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("Number of Comments: {}\n", post.comments.len());
     }
 
-    let posts_tydi = posts.convert();
-    let posts_binary = posts_tydi.finish(256);
-    let tags_tydi = posts_tydi.drill(|e| e.tags.clone()).drill(|e| e.as_bytes().to_vec());
-    let comments_tydi = posts_tydi.drill(|e| e.comments.clone());
-    let comments_binary = comments_tydi.finish(160);
-    let comment_author_tydi = comments_tydi.drill(|e| e.author.username.as_bytes().to_vec());
-    let comment_author_binary = comment_author_tydi.finish(8);
+    let typed_streams = PhysicalStreamsTyped::new(posts.clone());
+    let binary_streams = PhysicalStreamsBinary::new(typed_streams);
 
-    println!("author stream binary: {:?}", comment_author_binary.iter().map(|e| e.to_string()).collect::<Vec<String>>());
+    println!("author stream binary: {:?}", binary_streams.post_comment_author_username.0.iter().map(|e| e.to_string()).collect::<Vec<String>>());
     println!("author stream native: {:?}", posts.iter().flat_map(|e| e.comments.clone()).flat_map(|e| e.author.username.as_bytes().iter().map(|e| format!("{:08b}", e)).collect::<Vec<_>>()).collect::<Vec<_>>());
 
-    println!("posts binary: {:?}", posts_binary);
-    let posts_recreated = packets_from_binaries::<Post>(posts_binary, 1);
+    println!("posts binary: {:?}", binary_streams.posts);
+    let objs = binary_streams.reverse();
+    let reconstructed_posts = objs.reverse();
+    // comments_recreated.inject(|e| e.author.username, comment_author_recreated);
+    // posts_recreated[0].data.unwrap().comments.push()
     let my_var = 5;
 
-    /*let exploded_posts: Vec<PostNonVecs> = posts.iter().map(|p| PostNonVecs::from(p.clone())).collect();
-    let posts_tydi: TydiVec<PostNonVecs> = exploded_posts.into();
-    let comments_tydi: Vec<TydiVec<Comment>> = posts.iter().map(|p| TydiVec::from(p.comments.clone())).collect();
-    let comments_tydi2: TydiVec<Comment> = comments_tydi.into();
-    let tags_tydi: Vec<TydiVec<u8>> = posts.iter().map(|p| {
-        TydiVec::from(
-            p.tags.iter().map(|t| TydiVec::from(t.as_str())).collect::<Vec<_>>()
-        )
-    }).collect();
-    let tags_tydi2: TydiVec<u8> = tags_tydi.into();*/
+    let json_recreated = serde_json::to_string(&reconstructed_posts).expect("Should have been able to serialize the reconstructed posts");
+    fs::write(recreation_file_path, json_recreated);
 
     Ok(())
 }
@@ -201,6 +281,24 @@ impl FromTydiBinary for Author {
         let author = Self {
             user_id,
             username: "".to_string(),
+        };
+        (author, res)
+    }
+}
+
+impl FromTydiBinary for Comment {
+    fn from_tydi_binary(value: TydiBinary) -> (Self, TydiBinary) {
+        let (comment_id, res) = u32::from_tydi_binary(value);
+        let (author, res) = Author::from_tydi_binary(res);
+        let (created_at, res) = MyDate::from_tydi_binary(res);
+        let (likes, res) = u32::from_tydi_binary(res);
+        let author = Self {
+            comment_id,
+            author,
+            content: "".to_string(),
+            created_at,
+            likes,
+            in_reply_to_comment_id: None,
         };
         (author, res)
     }

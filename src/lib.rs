@@ -5,6 +5,12 @@ use crate::binary::{FromTydiBinary, TydiBinary};
 pub mod drilling;
 pub mod binary;
 
+#[derive(Debug)]
+pub struct TydiStream<T>(pub Vec<TydiPacket<T>>);
+
+#[derive(Debug)]
+pub struct TydiBinaryStream(pub Vec<TydiBinary>);
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TydiPacket<T> {
     pub data: Option<T>,
@@ -39,6 +45,13 @@ impl<T> TydiPacket<T> {
             None
         };
         Self { data, last }
+    }
+
+    pub fn map_data<B>(self, f: impl FnOnce(T) -> B) -> TydiPacket<B> {
+        TydiPacket {
+            data: self.data.and_then(|x| Some(f(x))),
+            last: self.last,
+        }
     }
 }
 
