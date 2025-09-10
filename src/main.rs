@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::error::Error;
 use chrono::{DateTime, Utc};
@@ -7,11 +7,11 @@ use rust_tydi_packages::binary::FromTydiBinary;
 // Define the data structures based on the JSON schema.
 // We use `serde::Deserialize` to automatically derive the deserialization logic.
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 struct MyDate(DateTime<Utc>);
 
 // Represents a single comment.
-#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Comment {
     comment_id: u32,
@@ -24,7 +24,7 @@ struct Comment {
 }
 
 // Represents the author of a post or comment.
-#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Author {
     user_id: u32,
@@ -32,7 +32,7 @@ struct Author {
 }
 
 // Represents a single post.
-#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Post {
     post_id: u32,
@@ -170,6 +170,7 @@ impl PhysicalStreamsBinary {
 fn main() -> Result<(), Box<dyn Error>> {
     // This assumes the JSON file is named 'posts.json' and is in the same directory.
     let json_file_path = "posts.json";
+    let recreation_file_path = "posts-rec.json";
 
     // Read the contents of the JSON file into a string.
     let json_data = fs::read_to_string(json_file_path)
@@ -201,16 +202,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     // posts_recreated[0].data.unwrap().comments.push()
     let my_var = 5;
 
-    /*let exploded_posts: Vec<PostNonVecs> = posts.iter().map(|p| PostNonVecs::from(p.clone())).collect();
-    let posts_tydi: TydiVec<PostNonVecs> = exploded_posts.into();
-    let comments_tydi: Vec<TydiVec<Comment>> = posts.iter().map(|p| TydiVec::from(p.comments.clone())).collect();
-    let comments_tydi2: TydiVec<Comment> = comments_tydi.into();
-    let tags_tydi: Vec<TydiVec<u8>> = posts.iter().map(|p| {
-        TydiVec::from(
-            p.tags.iter().map(|t| TydiVec::from(t.as_str())).collect::<Vec<_>>()
-        )
-    }).collect();
-    let tags_tydi2: TydiVec<u8> = tags_tydi.into();*/
+    let json_recreated = serde_json::to_string(&reconstructed_posts).expect("Should have been able to serialize the reconstructed posts");
+    fs::write(recreation_file_path, json_recreated);
 
     Ok(())
 }
