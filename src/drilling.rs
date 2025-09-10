@@ -111,7 +111,7 @@ impl<T: Clone> TydiStream<T> {
     where
         F: Fn(&mut T) -> &mut String
     {
-        let strings = data.solidify_into_strings().unpack();
+        let strings = data.solidify_into_strings().unpack_with_default("".to_string());
         let mut strings_iter = strings.iter();
 
         for x in self.0.iter_mut() {
@@ -153,6 +153,11 @@ impl<T: Clone> TydiStream<T> {
     /// Consuming the final dimension in the `last` data and emit a `Vec`.
     pub fn unpack(self) -> Vec<T> {
         self.0.iter().map(|el| el.data.clone().unwrap()).collect()
+    }
+
+    /// Consuming the final dimension in the `last` data and emit a `Vec`.
+    pub fn unpack_with_default(self, default: T) -> Vec<T> {
+        self.0.iter().map(|el| el.data.clone().unwrap_or(default.clone())).collect()
     }
 
     /// Creates one layer of `Vec` inside the packet by consuming the lowest dimension in the `last` data.
