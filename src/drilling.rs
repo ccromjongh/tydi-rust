@@ -106,6 +106,28 @@ impl<T: Clone> TydiStream<T> {
         self
     }
 
+    /// Inject the [data] in the vector referenced in the function [f] by consuming the lowest dimension in the `last` data.
+    pub fn inject_string<F>(&mut self, f: F, data: TydiStream<u8>) -> &mut Self
+    where
+        F: Fn(&mut T) -> &mut String
+    {
+        let strings = data.solidify_into_strings().unpack();
+        let mut strings_iter = strings.iter();
+
+        for x in self.0.iter_mut() {
+            let self_option = x.data.as_mut();
+            if self_option.is_none() {
+                continue
+            }
+            let self_data = self_option.unwrap();
+            let mut target = f(self_data);
+            if let Some(el) = strings_iter.next() {
+                target.push_str(el);
+            }
+        }
+        self
+    }
+
     /// Creates one layer of `Vec` by consuming the lowest dimension in the `last` data.
     pub fn vectorize(self) -> Vec<Vec<TydiPacket<T>>> {
         let mut result: Vec<Vec<TydiPacket<T>>> = Vec::new();

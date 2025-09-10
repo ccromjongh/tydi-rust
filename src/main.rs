@@ -93,7 +93,7 @@ impl PhysicalStreamsTyped {
     pub fn new(posts: Vec<Post>) -> PhysicalStreamsTyped {
         let posts_tydi = posts.convert();
         let titles_tydi = posts_tydi.drill(|e| e.title.as_bytes().to_vec());
-        let contents_tydi = posts_tydi.drill(|e| e.title.as_bytes().to_vec());
+        let contents_tydi = posts_tydi.drill(|e| e.content.as_bytes().to_vec());
         let tags_tydi = posts_tydi.drill(|e| e.tags.clone()).drill(|e| e.as_bytes().to_vec());
         let comments_tydi = posts_tydi.drill(|e| e.comments.clone());
         let comment_author_tydi = comments_tydi.drill(|e| e.author.username.as_bytes().to_vec());
@@ -111,12 +111,17 @@ impl PhysicalStreamsTyped {
     }
 
     pub fn reverse(self) -> Vec<Post> {
+        let mut comments_recreated = self.post_comments;
+        comments_recreated.inject_string(|el| &mut el.author.username, self.post_comment_author_username);
+        comments_recreated.inject_string(|el| &mut el.content, self.post_comment_content);
+
         let mut posts_recreated = self.posts;
-        posts_recreated.inject(|el| &mut el.comments, self.post_comments);
+        posts_recreated.inject(|el| &mut el.comments, comments_recreated);
         let tags_recreated = self.post_tags.solidify_into_strings();
-        let titles_recreated = self.post_titles.solidify_into_strings();
         posts_recreated.inject(|el| &mut el.tags, tags_recreated);
-        // posts_recreated.inject(|el| &mut el.title, titles_recreated);
+        posts_recreated.inject_string(|el| &mut el.title, self.post_titles);
+        posts_recreated.inject_string(|el| &mut el.content, self.post_contents);
+        posts_recreated.inject_string(|el| &mut el.author.username, self.post_author_username);
 
         posts_recreated.unpack()
     }
